@@ -22,6 +22,15 @@ export interface MinisterPsychology {
     paranoia: number; // 0-100, affects false positives in intel
 }
 
+export type MinisterStrategy = 'GROWTH' | 'AUSTERITY' | 'WELFARE' | 'GREED';
+
+export const POLITICAL_COSTS = {
+    VETO_LAW: 10,
+    FIRE_MINISTER: 25,
+    MANUAL_OVERRIDE: 5,
+    EMERGENCY_DECREE: 50
+} as const;
+
 // --- Phase 8: Sociology & POPs ---
 
 export type SocialClass = 'Elite' | 'Middle' | 'Lower';
@@ -98,4 +107,14 @@ export interface PresidentialDecision {
         effect: (state: GameState) => Partial<GameState>;
     }[];
     expiresAt?: Date;
+}
+
+// UI feedback helpers
+export interface RegionUIFlags {
+    unrestHigh?: boolean;
+    strike?: boolean;
+}
+
+export interface MinisterFaceState {
+    mood: 'happy' | 'angry' | 'nervous' | 'neutral';
 }

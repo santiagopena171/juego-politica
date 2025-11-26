@@ -1,4 +1,5 @@
-import type { MinisterPsychology, MinisterMandate } from './living_world';
+﻿import type { MinisterPsychology, MinisterMandate } from './living_world';
+import type { MinisterStrategy } from './living_world';
 
 export type Ideology = 'Socialist' | 'Liberal' | 'Conservative' | 'Nationalist' | 'Centrist' | 'Authoritarian' | 'Capitalist';
 
@@ -38,6 +39,7 @@ export interface Minister {
     scandalsCount: number; // Track scandal history
     psychology?: MinisterPsychology;
     mandate?: MinisterMandate;
+    strategy?: MinisterStrategy;
 }
 
 // --- Parliament & Parties ---
@@ -59,7 +61,8 @@ export interface Parliament {
     factions?: any[]; // NEW: Array de facciones (tipo importado dinámicamente)
     governmentCoalition?: string[]; // NEW: IDs de partidos en coalición
     governmentSupport?: number; // NEW: % de apoyo al gobierno (0-100)
-    activeBill?: any | null; // NEW: Ley actualmente en votación (tipo Bill)
+    activeBill?: any | null; // NEW: Ley actualmente en votacion (tipo Bill)
+    partyCohesion?: number; // Cohesion interna del bloque oficialista (0-100)
 }
 
 // --- Policies & Projects ---
@@ -117,3 +120,5 @@ export interface Situation {
     trend: number; // + or - per turn
     active: boolean;
 }
+
+

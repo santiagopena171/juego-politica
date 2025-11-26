@@ -8,8 +8,8 @@ import type { MinisterMandate } from '../types/living_world';
 import type { Bill, FactionVote, ParliamentaryEvent } from '../types/parliament';
 import type { Region, Industry, BudgetAllocation, TradeAgreement, EconomicEvent } from '../types/economy';
 import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } from '../types/social';
-import type { MediaState, PresidentialDecision } from '../types/living_world';
-import { evaluateTurnLogic } from '../systems/theBrain';
+import type { MediaState, PresidentialDecision, RegionUIFlags, MinisterFaceState } from '../types/living_world';
+import { evaluateTurn } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
 import { simulateBillVote, updateFactionStances, calculateGovernmentSupport } from '../systems/parliamentSystem';
@@ -98,6 +98,7 @@ export interface GameState {
         taxRate: number;
         publicSpending: number;
         activeProjects: Project[];
+        manualOverrideActive?: boolean;
     };
     economy: {
         regions: Region[];
@@ -130,10 +131,16 @@ export interface GameState {
     };
     media: MediaState;
     decisionStack: PresidentialDecision[];
+    uiFlags?: {
+        regionFlags: Record<string, RegionUIFlags>;
+        ministerFaces: Record<string, MinisterFaceState>;
+    };
     time: {
         date: Date;
         isPlaying: boolean;
         speed: 0 | 1 | 2 | 3;
+        turn?: number;
+        isCampaignMode?: boolean;
     };
     notifications: GameNotification[];
     logs: string[];
@@ -141,12 +148,12 @@ export interface GameState {
     storyVars: { [key: string]: any };
     eventHistory: string[];
     delayedEvents: Array<{ eventId: string; triggersIn: number }>;
-    activeStorylines: Array<{
-        storylineId: string;
-        currentStage: number;
-        startedAt: Date;
-        storyVars: { [key: string]: any };
-    }>;
+        activeStorylines: Array<{
+            storylineId: string;
+            currentStage: number;
+            startedAt: Date;
+            storyVars: { [key: string]: any };
+        }>;
     emergencyMode: {
         active: boolean;
         type?: 'earthquake' | 'flood' | 'pandemic' | 'drought';
@@ -329,7 +336,8 @@ const initialState: GameState = {
     policies: {
         taxRate: 0.25,
         publicSpending: 100,
-        activeProjects: []
+        activeProjects: [],
+        manualOverrideActive: false
     },
     economy: {
         regions: [],
@@ -349,7 +357,7 @@ const initialState: GameState = {
     },
     government: {
         ministers: [],
-        parliament: { totalSeats: 0, parties: [], nextElectionDate: 0 }
+        parliament: { totalSeats: 0, parties: [], nextElectionDate: 0, partyCohesion: 50 }
     },
     events: {
         activeEvent: null,
@@ -380,10 +388,16 @@ const initialState: GameState = {
         propagandaBudget: 0
     },
     decisionStack: [],
+    uiFlags: {
+        regionFlags: {},
+        ministerFaces: {}
+    },
     time: {
         date: START_DATE,
         isPlaying: false,
         speed: 1,
+        turn: 1,
+        isCampaignMode: false
     },
     notifications: [],
     logs: [],
@@ -450,7 +464,9 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
             let newPolicies = {
                 taxRate: 0.25,
-                publicSpending: selectedCountry.stats.gdp * 0.20
+                publicSpending: selectedCountry.stats.gdp * 0.20,
+                activeProjects: [] as Project[],
+                manualOverrideActive: false
             };
 
             if (ideology === 'Socialist') {
@@ -472,7 +488,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
             const otherCountries = COUNTRIES.filter(c => c.id !== countryId);
 
-            const parliament = generateParliament(100);
+            const parliament = { ...generateParliament(100), partyCohesion: 55 };
 
             // Generar economía regional
             const regions = generateRegions(
@@ -512,12 +528,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 diplomacy: { countries: otherCountries },
                 government: { ministers: [], parliament }, // Start with empty cabinet
                 events: { activeEvent: null, situations: [], parliamentaryEvent: null },
-                social: socialData,
-                // Fase 5: Inicializar storyteller
-                storyVars: {},
-                eventHistory: [],
-                delayedEvents: [],
-                activeStorylines: [],
+        social: socialData,
+        uiFlags: {
+            regionFlags: {},
+            ministerFaces: {}
+        },
+        // Fase 5: Inicializar storyteller
+        storyVars: {},
+        eventHistory: [],
+        delayedEvents: [],
+        activeStorylines: [],
                 emergencyMode: { active: false },
                 ministers: [], // Alias
                 date: { month: 1, year: 2025 },
@@ -1006,7 +1026,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 }
             };
 
-            const { newState: updatedStateAfterBrain, newDecisions } = evaluateTurnLogic(baseMonthlyState);
+            const { newState: updatedStateAfterBrain, newDecisions } = evaluateTurn(baseMonthlyState);
 
             const decisionIds = new Set(updatedStateAfterBrain.decisionStack.map(d => d.id));
             const mergedDecisionStack = [
