@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard';
 import { NewGameSetup } from './components/NewGameSetup';
 import { MinisterSelectionPage } from './components/MinisterSelectionPage';
 import { MainMenu } from './components/MainMenu';
+import { AudioProvider } from './context/AudioContext';
 
 const GameApp = () => {
   const { state } = useGame();
@@ -45,9 +46,11 @@ const GameApp = () => {
 
 function App() {
   return (
-    <GameProvider>
-      <GameApp />
-    </GameProvider>
+    <AudioProvider>
+      <GameProvider>
+        <GameApp />
+      </GameProvider>
+    </AudioProvider>
   );
 }
 

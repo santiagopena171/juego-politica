@@ -12,6 +12,7 @@ import type { MediaState, PresidentialDecision, RegionUIFlags, MinisterFaceState
 import type { Constitution, Judge } from '../types/judiciary';
 import type { NationalProject } from '../systems/grandProjects';
 import type { ActiveSituation } from '../systems/CrisisSystem';
+import { shiftCompass } from '../systems/IdeologySystem';
 import { evaluateTurn } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
@@ -1304,7 +1305,14 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 lastReport: `Mandato "${mandateDef.name}" asignado`
             };
 
-            return {
+            const mandateShift = (() => {
+                if (mandateDef.type === 'GROWTH') return { x: 3, y: 1 };
+                if (mandateDef.type === 'AUSTERITY') return { x: 2, y: 0 };
+                if (mandateDef.type === 'POPULISM') return { x: -1, y: -2 };
+                return { x: 0, y: 0 };
+            })();
+
+            let nextState: GameState = {
                 ...state,
                 government: {
                     ...state.government,
@@ -1319,6 +1327,9 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     politicalCapital: state.resources.politicalCapital - mandateDef.politicalCapitalCost
                 }
             };
+
+            nextState = shiftCompass(nextState, mandateShift);
+            return nextState;
         }
 
         case 'APPOINT_MINISTER': {

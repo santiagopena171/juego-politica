@@ -18,6 +18,7 @@ import EconomicEventModal from './EconomicEventModal';
 import { SocialMonitor } from './SocialMonitor';
 import { UNPanel } from './UNPanel';
 import { WarRoom } from './WarRoom';
+import { PolicyTree } from './PolicyTree';
 import { PoliticalCompassWidget } from './PoliticalCompassWidget';
 import { ActiveSituationsWidget } from './ActiveSituationsWidget';
 import { AlliancesPanel } from './AlliancesPanel';
@@ -269,7 +270,12 @@ export const Dashboard = () => {
                 ) : view === 'parliament' ? (
                     <ParliamentPanel />
                 ) : view === 'policies' ? (
-                    <PoliciesPanel />
+                    <>
+                        <PoliciesPanel />
+                        <div className="mt-6">
+                            <PolicyTree />
+                        </div>
+                    </>
                 ) : view === 'economy' ? (
                     <EconomyPanel />
                 ) : view === 'projects' ? (
@@ -345,6 +351,8 @@ export const Dashboard = () => {
         </div>
     );
 };
+
+
 
 
 
