@@ -286,7 +286,9 @@ type Action =
     | { type: 'ACCEPT_REFUGEES'; payload: { crisisId: string; amount: number } }
     | { type: 'CLOSE_BORDERS'; payload: { crisisId: string } }
     | { type: 'SIMULATE_WAR_ROUND'; payload: { warId: string } }
-    | { type: 'PROCESS_UN_VOTING'; payload: { resolutionId: string } };
+    | { type: 'PROCESS_UN_VOTING'; payload: { resolutionId: string } }
+    // Save/Load System
+    | { type: 'LOAD_GAME'; payload: GameState };
 
 // --- Initial State ---
 const START_DATE = new Date('2025-01-01');
@@ -2035,6 +2037,18 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     }
                 },
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Política migratoria actualizada: ${openness}`]
+            };
+        }
+
+        case 'LOAD_GAME': {
+            // Cargar estado completo desde save
+            return {
+                ...action.payload,
+                // Asegurar que el juego esté pausado al cargar
+                time: {
+                    ...action.payload.time,
+                    isPlaying: false
+                }
             };
         }
 

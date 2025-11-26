@@ -3,9 +3,11 @@ import { GameProvider, useGame } from './context/GameContext';
 import { Dashboard } from './components/Dashboard';
 import { NewGameSetup } from './components/NewGameSetup';
 import { MinisterSelectionPage } from './components/MinisterSelectionPage';
+import { MainMenu } from './components/MainMenu';
 
 const GameApp = () => {
   const { state } = useGame();
+  const [showMainMenu, setShowMainMenu] = useState(true);
   const [cabinetComplete, setCabinetComplete] = useState(false);
 
   // Watch for cabinet completion
@@ -14,6 +16,18 @@ const GameApp = () => {
       setCabinetComplete(true);
     }
   }, [state.gameStarted, state.government.ministers.length]);
+
+  // Hide main menu when game starts (from load or new game)
+  useEffect(() => {
+    if (state.gameStarted) {
+      setShowMainMenu(false);
+    }
+  }, [state.gameStarted]);
+
+  // Show main menu first
+  if (showMainMenu && !state.gameStarted) {
+    return <MainMenu onNewGame={() => setShowMainMenu(false)} />;
+  }
 
   // Show setup if game hasn't started
   if (!state.gameStarted) {

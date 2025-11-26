@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Play, Pause, DollarSign, Users, Activity, AlertTriangle, Vote, Globe, Briefcase, TrendingUp, Shield, Swords } from 'lucide-react';
+import { Play, Pause, DollarSign, Users, Activity, AlertTriangle, Vote, Globe, Briefcase, TrendingUp, Shield, Swords, Save, FolderOpen } from 'lucide-react';
 import { DiplomacyPanel } from './DiplomacyPanel';
 import { CabinetPanel } from './CabinetPanel';
 import { ParliamentPanel } from './ParliamentPanel';
@@ -18,12 +18,44 @@ import { SocialMonitor } from './SocialMonitor';
 import { UNPanel } from './UNPanel';
 import { WarRoom } from './WarRoom';
 import { AlliancesPanel } from './AlliancesPanel';
+import { SaveLoadMenu } from './SaveLoadMenu';
+import { autoSave } from '../utils/saveSystem';
 
 export const Dashboard = () => {
     const { state, dispatch } = useGame();
     const { player, resources, stats, time, diplomacy, parliament, economy } = state;
     const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
     const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances'>('office');
+    const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+    const [saveMenuMode, setSaveMenuMode] = useState<'save' | 'load'>('save');
+
+    // Auto-save every 3 minutes and when important actions happen
+    useEffect(() => {
+        if (!state.gameStarted) return;
+
+        const interval = setInterval(() => {
+            autoSave(state);
+            console.log('🎮 Auto-guardado completado');
+        }, 3 * 60 * 1000); // 3 minutos
+
+        return () => clearInterval(interval);
+    }, [state]);
+
+    // Auto-save on critical state changes
+    useEffect(() => {
+        if (!state.gameStarted) return;
+        
+        // Save when time advances significantly (every 3 turns)
+        const currentTurn = state.time.date.getMonth() + (state.time.date.getFullYear() - 2025) * 12;
+        if (currentTurn % 3 === 0 && state.time.isPlaying) {
+            autoSave(state);
+        }
+    }, [state.time.date, state.gameStarted, state.time.isPlaying]);
+
+    const handleOpenSaveMenu = (mode: 'save' | 'load') => {
+        setSaveMenuMode(mode);
+        setSaveMenuOpen(true);
+    };
 
     const formatMoney = (amount: number) => {
         return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', notation: 'compact' }).format(amount * 1_000_000_000);
@@ -159,6 +191,26 @@ export const Dashboard = () => {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        {/* Save/Load Buttons */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleOpenSaveMenu('save')}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg"
+                                title="Guardar Partida"
+                            >
+                                <Save size={18} />
+                                <span className="hidden sm:inline">Guardar</span>
+                            </button>
+                            <button
+                                onClick={() => handleOpenSaveMenu('load')}
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+                                title="Cargar Partida"
+                            >
+                                <FolderOpen size={18} />
+                                <span className="hidden sm:inline">Cargar</span>
+                            </button>
+                        </div>
+
                         <div className="flex items-center gap-4 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-700/50">
                             <div className="text-right">
                                 <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Fecha</div>
@@ -340,6 +392,13 @@ export const Dashboard = () => {
                     onClose={() => {}} // Auto closes - modal shows once at event start
                 />
             )}
+
+            {/* Save/Load Menu */}
+            <SaveLoadMenu 
+                isOpen={saveMenuOpen} 
+                onClose={() => setSaveMenuOpen(false)} 
+                mode={saveMenuMode} 
+            />
         </div>
     );
 };
