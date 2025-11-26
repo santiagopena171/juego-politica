@@ -21,12 +21,14 @@ import { WarRoom } from './WarRoom';
 import { AlliancesPanel } from './AlliancesPanel';
 import { SaveLoadMenu } from './SaveLoadMenu';
 import { autoSave } from '../utils/saveSystem';
+import { JudiciaryPanel } from './JudiciaryPanel';
+import { GrandProjectsPanel } from './GrandProjectsPanel';
 
 export const Dashboard = () => {
     const { state, dispatch } = useGame();
     const { player, resources, stats, time, diplomacy, parliament, economy } = state;
     const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
-    const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances'>('office');
+    const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances' | 'judiciary' | 'projects'>('office');
     const [saveMenuOpen, setSaveMenuOpen] = useState(false);
     const [saveMenuMode, setSaveMenuMode] = useState<'save' | 'load'>('save');
 
@@ -87,107 +89,33 @@ export const Dashboard = () => {
                         </div>
 
                         {/* Navigation Tabs */}
-                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
-                            <button
-                                onClick={() => setView('office')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'office'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Briefcase size={16} />
-                                Oficina
-                            </button>
-                            <button
-                                onClick={() => setView('cabinet')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'cabinet'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Users size={16} />
-                                Gabinete
-                            </button>
-                            <button
-                                onClick={() => setView('parliament')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'parliament'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Vote size={16} />
-                                Parlamento
-                            </button>
-                            <button
-                                onClick={() => setView('policies')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'policies'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Briefcase size={16} />
-                                Gesti+�n
-                            </button>
-                            <button
-                                onClick={() => setView('economy')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'economy'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <TrendingUp size={16} />
-                                Econom+�a
-                            </button>
-                            <button
-                                onClick={() => setView('social')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'social'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Users size={16} />
-                                Social
-                            </button>
-                            <button
-                                onClick={() => setView('map')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'map'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Globe size={16} />
-                                Mapa Mundi
-                            </button>
-                            <button
-                                onClick={() => setView('alliances')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'alliances'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Shield size={16} />
-                                Alianzas
-                            </button>
-                            <button
-                                onClick={() => setView('un')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'un'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Globe size={16} />
-                                ONU
-                            </button>
-                            <button
-                                onClick={() => setView('warroom')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'warroom'
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    }`}
-                            >
-                                <Swords size={16} />
-                                Guerra
-                            </button>
+                        <div className="flex flex-wrap gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
+                            {[
+                                { key: 'office', label: 'Oficina', icon: <Briefcase size={16} /> },
+                                { key: 'cabinet', label: 'Gabinete', icon: <Users size={16} /> },
+                                { key: 'parliament', label: 'Parlamento', icon: <Vote size={16} /> },
+                                { key: 'judiciary', label: 'Justicia', icon: <Shield size={16} /> },
+                                { key: 'policies', label: 'Gestion', icon: <Briefcase size={16} /> },
+                                { key: 'economy', label: 'Economia', icon: <TrendingUp size={16} /> },
+                                { key: 'projects', label: 'Proyectos', icon: <Activity size={16} /> },
+                                { key: 'social', label: 'Social', icon: <Users size={16} /> },
+                                { key: 'map', label: 'Mapa Mundi', icon: <Globe size={16} /> },
+                                { key: 'alliances', label: 'Alianzas', icon: <Shield size={16} /> },
+                                { key: 'un', label: 'ONU', icon: <Globe size={16} /> },
+                                { key: 'warroom', label: 'Guerra', icon: <Swords size={16} /> },
+                            ].map(tab => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setView(tab.key as any)}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === tab.key
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                        }`}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -340,6 +268,14 @@ export const Dashboard = () => {
                     <PoliciesPanel />
                 ) : view === 'economy' ? (
                     <EconomyPanel />
+                ) : view === 'projects' ? (
+                    <div className="p-4">
+                        <GrandProjectsPanel />
+                    </div>
+                ) : view === 'judiciary' ? (
+                    <div className="p-4">
+                        <JudiciaryPanel />
+                    </div>
                 ) : view === 'social' ? (
                     <SocialMonitor />
                 ) : view === 'alliances' ? (
@@ -405,4 +341,6 @@ export const Dashboard = () => {
         </div>
     );
 };
+
+
 
