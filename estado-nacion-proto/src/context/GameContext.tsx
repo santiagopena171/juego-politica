@@ -9,6 +9,8 @@ import type { Bill, FactionVote, ParliamentaryEvent } from '../types/parliament'
 import type { Region, Industry, BudgetAllocation, TradeAgreement, EconomicEvent } from '../types/economy';
 import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } from '../types/social';
 import type { MediaState, PresidentialDecision, RegionUIFlags, MinisterFaceState } from '../types/living_world';
+import type { Constitution, Judge } from '../types/judiciary';
+import type { NationalProject } from '../systems/grandProjects';
 import { evaluateTurn } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
@@ -134,6 +136,11 @@ export interface GameState {
     uiFlags?: {
         regionFlags: Record<string, RegionUIFlags>;
         ministerFaces: Record<string, MinisterFaceState>;
+    };
+    nationalProjects: NationalProject[];
+    judiciary: {
+        supremeCourt: Judge[];
+        constitution: Constitution;
     };
     time: {
         date: Date;
@@ -391,6 +398,16 @@ const initialState: GameState = {
     uiFlags: {
         regionFlags: {},
         ministerFaces: {}
+    },
+    nationalProjects: [],
+    judiciary: {
+        supremeCourt: [],
+        constitution: {
+            termLength: 4,
+            electionSystem: 'PROPORTIONAL',
+            judicialIndependence: 70,
+            rights: { freeSpeech: true, assembly: true, strike: true }
+        }
     },
     time: {
         date: START_DATE,

@@ -6,6 +6,9 @@ import { regenPoliticalCapital } from './politicalCapital';
 import { handleElectionIfNeeded, isCampaignTurn } from './elections';
 import { computeRegionUIFlags, computeMinisterFaces } from './uiSignals';
 import { evaluateMinisterBehavior } from './psychology';
+import { ageAndRefreshJudiciary } from './judiciary';
+import { processGrandProjects } from './grandProjects';
+import { decayInfluence } from './geopoliticsExpansion';
 
 export const evaluateTurn = (state: GameState): { newState: GameState; newDecisions: PresidentialDecision[] } => {
     let newState = { ...state };
@@ -60,7 +63,29 @@ export const evaluateTurn = (state: GameState): { newState: GameState; newDecisi
     const ministerFaces = computeMinisterFaces(newState);
     newState = { ...newState, uiFlags: { regionFlags, ministerFaces } as any };
 
-    // 7. Psicología (decisiones de ministros)
+    // 7. Fase judicial (envejecen jueces, detectar vacancias)
+    if (newState.judiciary) {
+        const { court, vacancy } = ageAndRefreshJudiciary(newState.judiciary.supremeCourt);
+        newState = {
+            ...newState,
+            judiciary: { ...newState.judiciary, supremeCourt: court },
+            logs: vacancy ? [...newState.logs, 'Un juez de la Corte Suprema ha dejado su cargo. Hay una vacante.'] : newState.logs
+        };
+    }
+
+    // 8. Proyectos nacionales (progreso y costos)
+    const { state: withProjects, events } = processGrandProjects(newState);
+    newState = { ...withProjects, logs: [...withProjects.logs, ...events] };
+
+    // 9. Influencia internacional: decaimiento natural
+    if (newState.diplomacy?.countries) {
+        newState = {
+            ...newState,
+            diplomacy: { ...newState.diplomacy, countries: decayInfluence(newState.diplomacy.countries) }
+        };
+    }
+
+    // 10. Psicología (decisiones de ministros)
     if (newState.government && newState.government.ministers) {
         newState.government.ministers.forEach(minister => {
             const decision = evaluateMinisterBehavior(minister, newState);

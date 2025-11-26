@@ -1,4 +1,4 @@
-export interface Country {
+﻿export interface Country {
     id: string;
     name: string;
     flag: string;
@@ -21,6 +21,8 @@ export interface Country {
         trade: boolean;
         defense: boolean;
     };
+    playerInfluence?: number; // 0-100 control economico del jugador
+    debtHeldByPlayer?: number; // 0-1 deuda en manos del jugador
 }
 
 export const COUNTRIES: Country[] = [
@@ -119,3 +121,5 @@ export const COUNTRIES: Country[] = [
         ideology: 'Centrist', relation: 50, treaties: { trade: false, defense: false }
     },
 ];
+
+
