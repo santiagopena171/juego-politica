@@ -18,6 +18,8 @@ import EconomicEventModal from './EconomicEventModal';
 import { SocialMonitor } from './SocialMonitor';
 import { UNPanel } from './UNPanel';
 import { WarRoom } from './WarRoom';
+import { PoliticalCompassWidget } from './PoliticalCompassWidget';
+import { ActiveSituationsWidget } from './ActiveSituationsWidget';
 import { AlliancesPanel } from './AlliancesPanel';
 import { SaveLoadMenu } from './SaveLoadMenu';
 import { autoSave } from '../utils/saveSystem';
@@ -167,6 +169,8 @@ export const Dashboard = () => {
                             </div>
                         </div>
                         <NotificationTray />
+        <ActiveSituationsWidget />
+        <PoliticalCompassWidget />
                     </div>
                 </div>
             </header>
@@ -341,6 +345,8 @@ export const Dashboard = () => {
         </div>
     );
 };
+
+
 
 
 

@@ -184,6 +184,10 @@ export const initializeCountryState = (baseState: GameState, country: CountryDat
             ...baseState.judiciary,
             constitution
         },
+        politicalCompass: {
+            x: country.ideology === 'Capitalist' ? 40 : country.ideology === 'Socialist' ? -40 : 0,
+            y: country.ideology === 'Authoritarian' ? -40 : 40
+        },
         logs: [...baseState.logs, `Inicialización realista para ${country.name}. Espíritus: ${spirits.join(', ') || 'ninguno'}`],
         nationalProjects: baseState.nationalProjects
     };

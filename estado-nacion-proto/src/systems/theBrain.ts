@@ -9,6 +9,8 @@ import { evaluateMinisterBehavior } from './psychology';
 import { ageAndRefreshJudiciary } from './judiciary';
 import { processGrandProjects } from './grandProjects';
 import { decayInfluence } from './geopoliticsExpansion';
+import { maybeSpawnSituations, tickSituations } from './CrisisSystem';
+import { driftCompassFromEconomy } from './IdeologySystem';
 
 export const evaluateTurn = (state: GameState): { newState: GameState; newDecisions: PresidentialDecision[] } => {
     let newState = { ...state };
@@ -73,11 +75,16 @@ export const evaluateTurn = (state: GameState): { newState: GameState; newDecisi
         };
     }
 
-    // 8. Proyectos nacionales (progreso y costos)
+    // 8. Situaciones activas (crisis)
+    newState = maybeSpawnSituations(newState);
+    const situationsTick = tickSituations(newState);
+    newState = { ...situationsTick.state, logs: [...situationsTick.state.logs, ...situationsTick.newEvents] };
+
+    // 9. Proyectos nacionales (progreso y costos)
     const { state: withProjects, events } = processGrandProjects(newState);
     newState = { ...withProjects, logs: [...withProjects.logs, ...events] };
 
-    // 9. Influencia internacional: decaimiento natural
+    // 10. Influencia internacional: decaimiento natural
     if (newState.diplomacy?.countries) {
         newState = {
             ...newState,
@@ -85,7 +92,10 @@ export const evaluateTurn = (state: GameState): { newState: GameState; newDecisi
         };
     }
 
-    // 10. Psicología (decisiones de ministros)
+    // 11. Brújula política: deriva suave por economía
+    newState = driftCompassFromEconomy(newState);
+
+    // 12. Psicología (decisiones de ministros)
     if (newState.government && newState.government.ministers) {
         newState.government.ministers.forEach(minister => {
             const decision = evaluateMinisterBehavior(minister, newState);

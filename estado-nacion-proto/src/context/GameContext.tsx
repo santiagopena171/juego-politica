@@ -11,6 +11,7 @@ import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } f
 import type { MediaState, PresidentialDecision, RegionUIFlags, MinisterFaceState } from '../types/living_world';
 import type { Constitution, Judge } from '../types/judiciary';
 import type { NationalProject } from '../systems/grandProjects';
+import type { ActiveSituation } from '../systems/CrisisSystem';
 import { evaluateTurn } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
@@ -137,6 +138,8 @@ export interface GameState {
         regionFlags: Record<string, RegionUIFlags>;
         ministerFaces: Record<string, MinisterFaceState>;
     };
+    politicalCompass: { x: number; y: number }; // -100 a 100
+    activeSituations: ActiveSituation[];
     nationalProjects: NationalProject[];
     judiciary: {
         supremeCourt: Judge[];
@@ -399,6 +402,8 @@ const initialState: GameState = {
         regionFlags: {},
         ministerFaces: {}
     },
+    politicalCompass: { x: 0, y: 0 },
+    activeSituations: [],
     nationalProjects: [],
     judiciary: {
         supremeCourt: [],
