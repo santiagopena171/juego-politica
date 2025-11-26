@@ -1,20 +1,29 @@
 import { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Play, Pause, DollarSign, Users, Activity, AlertTriangle, Vote, Globe, Briefcase } from 'lucide-react';
+import { Play, Pause, DollarSign, Users, Activity, AlertTriangle, Vote, Globe, Briefcase, TrendingUp, Shield, Swords } from 'lucide-react';
 import { DiplomacyPanel } from './DiplomacyPanel';
 import { CabinetPanel } from './CabinetPanel';
 import { ParliamentPanel } from './ParliamentPanel';
 import { PoliciesPanel } from './PoliciesPanel';
 import { SituationsMonitor } from './SituationsMonitor';
 import { EventModal } from './EventModal';
+import { EmergencyModePanel } from './EmergencyModePanel';
 import { NotificationTray } from './NotificationTray';
 import { WorldMap } from './WorldMap';
+import { VotingResultsModal } from './VotingResultsModal';
+import { ParliamentaryEventModal } from './ParliamentaryEventModal';
+import { EconomyPanel } from './EconomyPanel';
+import EconomicEventModal from './EconomicEventModal';
+import { SocialMonitor } from './SocialMonitor';
+import { UNPanel } from './UNPanel';
+import { WarRoom } from './WarRoom';
+import { AlliancesPanel } from './AlliancesPanel';
 
 export const Dashboard = () => {
     const { state, dispatch } = useGame();
-    const { player, resources, stats, time, diplomacy } = state;
+    const { player, resources, stats, time, diplomacy, parliament, economy } = state;
     const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
-    const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies'>('office');
+    const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances'>('office');
 
     const formatMoney = (amount: number) => {
         return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', notation: 'compact' }).format(amount * 1_000_000_000);
@@ -87,6 +96,26 @@ export const Dashboard = () => {
                                 Gestión
                             </button>
                             <button
+                                onClick={() => setView('economy')}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'economy'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                <TrendingUp size={16} />
+                                Economía
+                            </button>
+                            <button
+                                onClick={() => setView('social')}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'social'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                <Users size={16} />
+                                Social
+                            </button>
+                            <button
                                 onClick={() => setView('map')}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'map'
                                     ? 'bg-blue-600 text-white shadow-sm'
@@ -95,6 +124,36 @@ export const Dashboard = () => {
                             >
                                 <Globe size={16} />
                                 Mapa Mundi
+                            </button>
+                            <button
+                                onClick={() => setView('alliances')}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'alliances'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                <Shield size={16} />
+                                Alianzas
+                            </button>
+                            <button
+                                onClick={() => setView('un')}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'un'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                <Globe size={16} />
+                                ONU
+                            </button>
+                            <button
+                                onClick={() => setView('warroom')}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'warroom'
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    }`}
+                            >
+                                <Swords size={16} />
+                                Guerra
                             </button>
                         </div>
                     </div>
@@ -226,6 +285,22 @@ export const Dashboard = () => {
                     <ParliamentPanel />
                 ) : view === 'policies' ? (
                     <PoliciesPanel />
+                ) : view === 'economy' ? (
+                    <EconomyPanel />
+                ) : view === 'social' ? (
+                    <SocialMonitor />
+                ) : view === 'alliances' ? (
+                    <div className="p-6">
+                        <AlliancesPanel />
+                    </div>
+                ) : view === 'un' ? (
+                    <div className="p-6">
+                        <UNPanel />
+                    </div>
+                ) : view === 'warroom' ? (
+                    <div className="p-6">
+                        <WarRoom />
+                    </div>
                 ) : (
                     /* Map View */
                     <div className="h-[calc(100vh-8rem)]">
@@ -247,6 +322,24 @@ export const Dashboard = () => {
             </main>
 
             <EventModal />
+            <EmergencyModePanel />
+            <ParliamentaryEventModal />
+            
+            {/* Voting Results Modal */}
+            {parliament.lastVoteResult && (
+                <VotingResultsModal
+                    voteResult={parliament.lastVoteResult}
+                    onClose={() => dispatch({ type: 'CLEAR_VOTE_RESULT' })}
+                />
+            )}
+
+            {/* Economic Event Modal */}
+            {economy.economicEvent && economy.economicEvent.remainingDuration === economy.economicEvent.duration && (
+                <EconomicEventModal
+                    event={economy.economicEvent}
+                    onClose={() => {}} // Auto closes - modal shows once at event start
+                />
+            )}
         </div>
     );
 };

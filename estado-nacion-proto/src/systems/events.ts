@@ -1,6 +1,7 @@
 import type { GameState } from '../context/GameContext';
 import { EVENTS, type GameEvent } from '../data/events';
 import type { Situation } from '../types/politics';
+import type { EconomicEvent } from '../types/economy';
 
 // --- Situation Definitions ---
 // In a real app, these might be in a data file like events.ts
@@ -137,4 +138,138 @@ export const checkSituationUpdates = (state: GameState): Situation[] => {
     }
 
     return newSituations;
+};
+
+// --- Economic Events System ---
+// Economic events can trigger based on game conditions
+export const checkEconomicEvents = (state: GameState): EconomicEvent | null => {
+    // Don't trigger if there's already an active economic event
+    if (state.economy?.economicEvent) return null;
+    
+    // Random chance for an event each month (5% base chance)
+    if (Math.random() > 0.05) return null;
+
+    const possibleEvents: EconomicEvent[] = [];
+
+    // Economic Crash - triggered by low stability, high deficit, or high unemployment
+    if (state.resources.stability < 40 || state.resources.budget < -10 || state.stats.unemployment > 0.15) {
+        possibleEvents.push({
+            id: 'economic_crash',
+            name: 'Crisis Económica',
+            description: 'Una recesión severa golpea la economía. El PIB cae dramáticamente y el desempleo se dispara.',
+            type: 'negative',
+            gdpImpact: -0.15,
+            unemploymentChange: 0.08,
+            stabilityChange: -10,
+            duration: 6,
+            affectedRegions: state.economy?.regions.map(r => r.id) || []
+        });
+    }
+
+    // Labor Strike - can happen in any industrial region
+    const industrialRegions = state.economy?.regions.filter(r => 
+        ['Industry', 'Agriculture', 'Mining'].includes(r.dominantIndustry)
+    ) || [];
+    
+    if (industrialRegions.length > 0 && (state.stats.unemployment > 0.10 || state.stats.popularity < 40)) {
+        const targetRegion = industrialRegions[Math.floor(Math.random() * industrialRegions.length)];
+        possibleEvents.push({
+            id: 'labor_strike',
+            name: 'Huelga Laboral Masiva',
+            description: `Los trabajadores de ${targetRegion.name} organizan una huelga general, paralizando la producción.`,
+            type: 'negative',
+            gdpImpact: -0.08,
+            unemploymentChange: 0.03,
+            stabilityChange: -5,
+            duration: 3,
+            affectedRegions: [targetRegion.id]
+        });
+    }
+
+    // Resource Discovery - can happen in any region with Mining or low development
+    const resourceRegions = state.economy?.regions.filter(r => 
+        r.dominantIndustry === 'Mining' || r.development < 50
+    ) || [];
+    
+    if (resourceRegions.length > 0 && state.resources.stability > 50) {
+        const targetRegion = resourceRegions[Math.floor(Math.random() * resourceRegions.length)];
+        const resourceTypes = ['petróleo', 'gas natural', 'litio', 'cobre', 'oro'];
+        const resource = resourceTypes[Math.floor(Math.random() * resourceTypes.length)];
+        
+        possibleEvents.push({
+            id: 'resource_discovery',
+            name: 'Descubrimiento de Recursos',
+            description: `Se descubrieron vastos depósitos de ${resource} en ${targetRegion.name}, atrayendo inversión extranjera.`,
+            type: 'positive',
+            gdpImpact: 0.12,
+            unemploymentChange: -0.04,
+            stabilityChange: 5,
+            duration: 12,
+            affectedRegions: [targetRegion.id]
+        });
+    }
+
+    // Tech Boom - requires high research budget and technology level
+    const researchBudget = state.economy?.budgetAllocation.Research || 0;
+    const techLevel = state.economy?.technologyLevel || 0;
+    
+    if (researchBudget > 15 && techLevel > 60) {
+        possibleEvents.push({
+            id: 'tech_boom',
+            name: 'Boom Tecnológico',
+            description: 'Una serie de innovaciones revolucionarias impulsan el sector tecnológico, creando miles de empleos bien pagados.',
+            type: 'positive',
+            gdpImpact: 0.10,
+            unemploymentChange: -0.05,
+            stabilityChange: 8,
+            duration: 8,
+            affectedRegions: state.economy?.regions.filter(r => r.dominantIndustry === 'Technology').map(r => r.id) || []
+        });
+    }
+
+    // Trade War - can happen if you have many trade agreements
+    const tradeCount = state.economy?.tradeAgreements.length || 0;
+    if (tradeCount > 3 && Math.random() > 0.7) {
+        possibleEvents.push({
+            id: 'trade_war',
+            name: 'Guerra Comercial',
+            description: 'Tensiones internacionales resultan en aranceles y sanciones comerciales que dañan las exportaciones.',
+            type: 'negative',
+            gdpImpact: -0.06,
+            unemploymentChange: 0.02,
+            stabilityChange: -3,
+            duration: 4,
+            affectedRegions: state.economy?.regions.map(r => r.id) || []
+        });
+    }
+
+    // Foreign Investment - requires stability and good diplomatic relations
+    const goodRelations = state.diplomacy.countries.filter(c => c.relation > 70).length;
+    if (goodRelations >= 5 && state.resources.stability > 60) {
+        possibleEvents.push({
+            id: 'foreign_investment',
+            name: 'Inversión Extranjera Masiva',
+            description: 'Grandes corporaciones internacionales deciden invertir miles de millones en el país.',
+            type: 'positive',
+            gdpImpact: 0.08,
+            unemploymentChange: -0.03,
+            stabilityChange: 6,
+            duration: 6,
+            affectedRegions: state.economy?.regions.map(r => r.id) || []
+        });
+    }
+
+    if (possibleEvents.length === 0) return null;
+
+    // Select one event weighted by type (favor negative events slightly to add challenge)
+    const weights = possibleEvents.map(e => e.type === 'negative' ? 1.2 : 1);
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < possibleEvents.length; i++) {
+        random -= weights[i];
+        if (random <= 0) return possibleEvents[i];
+    }
+
+    return possibleEvents[possibleEvents.length - 1];
 };
