@@ -1,3 +1,5 @@
+import type { MinisterPsychology, MinisterMandate } from './living_world';
+
 export type Ideology = 'Socialist' | 'Liberal' | 'Conservative' | 'Nationalist' | 'Centrist' | 'Authoritarian' | 'Capitalist';
 
 export type MinistryType = 'Economy' | 'Foreign' | 'Interior' | 'Defense' | 'Health' | 'Education' | 'Infrastructure' | 'Environment';
@@ -34,6 +36,8 @@ export interface Minister {
     biography: string;   // Generated flavor text
     appointmentDate?: Date; // When they took office
     scandalsCount: number; // Track scandal history
+    psychology?: MinisterPsychology;
+    mandate?: MinisterMandate;
 }
 
 // --- Parliament & Parties ---

@@ -7,14 +7,16 @@ import type { Minister, Parliament, Project, Situation } from '../types/politics
 import type { Bill, FactionVote, ParliamentaryEvent } from '../types/parliament';
 import type { Region, Industry, BudgetAllocation, TradeAgreement, EconomicEvent } from '../types/economy';
 import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } from '../types/social';
+import type { MediaState, PresidentialDecision } from '../types/living_world';
+import { evaluateTurnLogic } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
 import { simulateBillVote, updateFactionStances, calculateGovernmentSupport } from '../systems/parliamentSystem';
 import { checkParliamentaryEvents } from '../systems/parliamentEvents';
 import { generateRegions, generateIndustries, calculateRegionalEconomy, getDefaultBudgetAllocation } from '../systems/economyRegional';
-import { 
-    initializeSocialData, 
-    calculateWeightedPopularity, 
+import {
+    initializeSocialData,
+    calculateWeightedPopularity,
     applyApprovalModifiers,
     checkForProtests,
     updateProtests,
@@ -103,6 +105,10 @@ export interface GameState {
         technologyLevel: number;
         researchPoints: number;
         economicEvent: EconomicEvent | null;
+        budgetSurplus: number;
+        gdpGrowthRate: number;
+        unemploymentRate: number;
+        averageHappiness: number;
     };
     diplomacy: {
         countries: Country[];
@@ -120,6 +126,8 @@ export interface GameState {
     parliament: {
         lastVoteResult: VoteResult | null;
     };
+    media: MediaState;
+    decisionStack: PresidentialDecision[];
     time: {
         date: Date;
         isPlaying: boolean;
@@ -147,7 +155,7 @@ export interface GameState {
     // Aliases para compatibilidad con storyteller
     ministers: Minister[];
     date: { month: number; year: number };
-    
+
     // Fase 6: Sistema Geopolítico Avanzado
     geopolitics: {
         // Relaciones diplomáticas con otros países
@@ -157,10 +165,10 @@ export interface GameState {
             hasNonAggressionPact: boolean;
             recentEvents: Array<{ type: string; description: string; relationChange: number; date: { month: number; year: number } }>;
         }>;
-        
+
         // Alianzas del jugador
         playerAlliances: string[]; // Alliance IDs
-        
+
         // Sanciones activas (contra el jugador o impuestas por el jugador)
         activeSanctions: Array<{
             id: string;
@@ -170,7 +178,7 @@ export interface GameState {
             startDate: { month: number; year: number };
             economicImpact: { gdpReduction: number; inflationIncrease: number; tradeReduction: number };
         }>;
-        
+
         // Guerras activas
         activeWars: Array<{
             id: string;
@@ -182,7 +190,7 @@ export interface GameState {
             casualties: number;
             monthlyCost: number;
         }>;
-        
+
         // Crisis de refugiados
         refugeeCrises: Array<{
             id: string;
@@ -193,7 +201,7 @@ export interface GameState {
             integrationCost: number;
             socialTensionIncrease: number;
         }>;
-        
+
         // Política migratoria del jugador
         migrationPolicy: {
             openness: 'open' | 'selective' | 'restricted' | 'closed';
@@ -205,7 +213,7 @@ export interface GameState {
                 persecution: boolean;
             };
         };
-        
+
         // ONU y resoluciones
         unitedNations: {
             activeResolutions: Array<{
@@ -223,10 +231,10 @@ export interface GameState {
             }>;
             playerVotingPower: number;
         };
-        
+
         // Tensión global
         globalTension: number; // 0-100
-        
+
         // Personalidades de países (IA)
         countryPersonalities: Record<string, {
             ideology: 'democratic' | 'authoritarian' | 'socialist' | 'capitalist' | 'theocratic';
@@ -327,7 +335,11 @@ const initialState: GameState = {
         tradeAgreements: [],
         technologyLevel: 50,
         researchPoints: 0,
-        economicEvent: null
+        economicEvent: null,
+        budgetSurplus: 0,
+        gdpGrowthRate: 0,
+        unemploymentRate: 0,
+        averageHappiness: 50
     },
     diplomacy: {
         countries: [],
@@ -342,6 +354,7 @@ const initialState: GameState = {
         parliamentaryEvent: null
     },
     social: {
+        groups: [],
         interestGroups: [],
         activeProtests: [],
         mediaState: {
@@ -358,6 +371,12 @@ const initialState: GameState = {
     parliament: {
         lastVoteResult: null
     },
+    media: {
+        outlets: [],
+        censorshipLevel: 0,
+        propagandaBudget: 0
+    },
+    decisionStack: [],
     time: {
         date: START_DATE,
         isPlaying: false,
@@ -375,7 +394,7 @@ const initialState: GameState = {
     },
     ministers: [], // Alias para storyteller
     date: { month: 1, year: 2025 }, // Alias para storyteller
-    
+
     // Fase 6: Estado geopolítico inicial
     geopolitics: {
         relations: {},
@@ -451,7 +470,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             const otherCountries = COUNTRIES.filter(c => c.id !== countryId);
 
             const parliament = generateParliament(100);
-            
+
             // Generar economía regional
             const regions = generateRegions(
                 selectedCountry.name,
@@ -461,10 +480,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             const industries = generateIndustries(regions);
 
             // Generar datos sociales
-            const playerIdeology: 'Left' | 'Center' | 'Right' = 
-                ideology === 'Socialist' ? 'Left' : 
-                ideology === 'Capitalist' ? 'Right' : 
-                'Center';
+            const playerIdeology: 'Left' | 'Center' | 'Right' =
+                ideology === 'Socialist' ? 'Left' :
+                    ideology === 'Capitalist' ? 'Right' :
+                        'Center';
             const socialData = initializeSocialData(selectedCountry.stats.population, playerIdeology);
 
             return {
@@ -481,7 +500,11 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     tradeAgreements: [],
                     technologyLevel: 50,
                     researchPoints: 0,
-                    economicEvent: null
+                    economicEvent: null,
+                    budgetSurplus: 0,
+                    gdpGrowthRate: 0,
+                    unemploymentRate: 0,
+                    averageHappiness: 50
                 },
                 diplomacy: { countries: otherCountries },
                 government: { ministers: [], parliament }, // Start with empty cabinet
@@ -495,19 +518,19 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 emergencyMode: { active: false },
                 ministers: [], // Alias
                 date: { month: 1, year: 2025 },
-                
+
                 // Fase 6: Inicializar sistema geopolítico
                 geopolitics: {
                     // Generar relaciones diplomáticas iniciales con todos los países
                     relations: otherCountries.reduce((acc, country) => {
                         // Relación inicial basada en ideología y región
                         let baseRelation = 50;
-                        
+
                         // Bonus por misma región
                         if (country.region === selectedCountry.region) {
                             baseRelation += 15;
                         }
-                        
+
                         // Bonus/penalty por ideología similar
                         const ideologyMap: Record<string, string> = {
                             'Socialist': 'socialist',
@@ -515,10 +538,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                             'Centrist': 'democratic',
                             'Authoritarian': 'authoritarian'
                         };
-                        
+
                         const playerIdeologyMapped = ideologyMap[ideology];
                         const countryIdeologyMapped = ideologyMap[country.ideology] || 'democratic';
-                        
+
                         if (playerIdeologyMapped === countryIdeologyMapped) {
                             baseRelation += 20;
                         } else if (
@@ -527,7 +550,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         ) {
                             baseRelation -= 20;
                         }
-                        
+
                         acc[country.id] = {
                             relation: Math.max(0, Math.min(100, baseRelation + Math.random() * 20 - 10)),
                             hasTradeAgreement: false,
@@ -536,19 +559,19 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         };
                         return acc;
                     }, {} as Record<string, any>),
-                    
+
                     // Sin alianzas al inicio
                     playerAlliances: [],
-                    
+
                     // Sin sanciones al inicio
                     activeSanctions: [],
-                    
+
                     // Sin guerras al inicio
                     activeWars: [],
-                    
+
                     // Sin crisis de refugiados al inicio
                     refugeeCrises: [],
-                    
+
                     // Política migratoria por defecto
                     migrationPolicy: {
                         openness: 'selective',
@@ -560,16 +583,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                             persecution: true,
                         },
                     },
-                    
+
                     // ONU
                     unitedNations: {
                         activeResolutions: [],
                         playerVotingPower: 1, // Todos los países tienen 1 voto en Asamblea General
                     },
-                    
+
                     // Tensión global inicial baja
                     globalTension: 15 + Math.random() * 10,
-                    
+
                     // Generar personalidades de países IA
                     countryPersonalities: otherCountries.reduce((acc, country) => {
                         const personality = generateCountryPersonality(
@@ -586,7 +609,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         return acc;
                     }, {} as Record<string, any>),
                 },
-                
+
                 logs: [`${START_DATE.toISOString().split('T')[0]}: El Presidente ${presidentName} del partido ${partyName} asume el cargo en ${selectedCountry.name}.`],
             };
         }
@@ -645,12 +668,12 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 state.resources.budget,
                 state.economy.tradeAgreements
             );
-            
+
             // Apply economic event effects if one is active
             let eventModifiedGdp = regionalEconomyResult.totalGdp;
             let eventModifiedUnemployment = regionalEconomyResult.nationalUnemployment;
             let eventModifiedStability = 0;
-            
+
             if (state.economy.economicEvent && state.economy.economicEvent.remainingDuration! > 0) {
                 // Apply GDP impact
                 eventModifiedGdp *= (1 + state.economy.economicEvent.gdpImpact);
@@ -660,7 +683,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 // Stability change will be applied later
                 eventModifiedStability = state.economy.economicEvent.stabilityChange;
             }
-            
+
             // Calcular presupuesto (ingresos - gastos)
             const totalSpending = state.resources.budget * (
                 Object.values(state.economy.budgetAllocation).reduce((sum, val) => sum + val, 0) / 100
@@ -669,15 +692,15 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             const expenses = totalSpending;
             const budgetSurplus = revenue - expenses;
             const newBudget = state.resources.budget + (budgetSurplus / 12);
-            
+
             // Actualizar tecnología
             let newTechnologyLevel = state.economy.technologyLevel;
             newTechnologyLevel += regionalEconomyResult.budgetEffects.educationBonus / 100;
             newTechnologyLevel = Math.max(0, Math.min(100, newTechnologyLevel));
-            
+
             // Acumular puntos de investigación
             const newResearchPoints = state.economy.researchPoints + regionalEconomyResult.budgetEffects.researchProgress;
-            
+
             // Actualizar estabilidad
             let newStability = state.resources.stability;
             newStability += regionalEconomyResult.budgetEffects.stabilityBonus / 10;
@@ -690,10 +713,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             if (spendingRatio > 0.4) inflation += 0.02;
 
             // === SOCIAL SYSTEM UPDATES ===
-            
+
             // 1. Aplicar efectos económicos sobre aprobación de grupos
             const economicModifiers: ApprovalModifier[] = [];
-            
+
             // Alto desempleo afecta negativamente a Sindicatos y Estudiantes
             if (eventModifiedUnemployment > 0.12) {
                 economicModifiers.push(
@@ -701,7 +724,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     { groupType: 'Students', change: -6, reason: 'Falta de oportunidades' }
                 );
             }
-            
+
             // Alta inflación afecta a todos, especialmente trabajadores y rurales
             if (inflation > 0.08) {
                 economicModifiers.push(
@@ -709,35 +732,35 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     { groupType: 'Rural', change: -4, reason: 'Pérdida de poder adquisitivo' }
                 );
             }
-            
+
             // Buen crecimiento económico beneficia a empresarios
             if (regionalEconomyResult.gdpGrowthRate > 0.04) {
                 economicModifiers.push(
                     { groupType: 'Business', change: 5, reason: 'Crecimiento económico' }
                 );
             }
-            
+
             // 2. Aplicar modificadores
             let updatedGroups = applyApprovalModifiers(state.social.interestGroups, economicModifiers);
-            
+
             // 3. Verificar y generar nuevas protestas
             const updatedProtests = checkForProtests(updatedGroups, state.social.activeProtests, state.time.date);
-            
+
             // 4. Actualizar protestas existentes
             const finalProtests = updateProtests(updatedProtests, updatedGroups);
-            
+
             // 5. Calcular impactos de protestas
             const protestEconomicImpact = finalProtests.reduce((sum, p) => sum + p.economicImpact, 0);
             const protestStabilityImpact = finalProtests.reduce((sum, p) => sum + p.stabilityImpact, 0);
-            
+
             // Aplicar impactos de protestas
             const finalGdp = eventModifiedGdp * (1 + protestEconomicImpact);
             let finalStability = newStability + protestStabilityImpact;
             finalStability = Math.max(0, Math.min(100, finalStability));
-            
+
             // 6. Calcular tensión social
             const newSocialTension = calculateSocialTension(updatedGroups, finalProtests);
-            
+
             // 7. Verificar escándalos mediáticos
             const scandal = generateMediaScandal(state.social.mediaState, state.social.humanRights);
             if (scandal && scandal.exposed) {
@@ -749,27 +772,27 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 // Re-aplicar con el escándalo
                 updatedGroups = applyApprovalModifiers(updatedGroups, [economicModifiers[economicModifiers.length - 1]]);
             }
-            
+
             // 8. Calcular nueva popularidad ponderada
             const weightedPopularity = calculateWeightedPopularity(updatedGroups);
-            
+
             // 9. Aplicar multiplicador de medios
             const mediaMultiplier = getMediaMultiplier(state.social.mediaState);
             let finalPopularity = weightedPopularity;
-            
+
             // Ajustes adicionales por indicadores
             if (inflation > 0.10) finalPopularity -= 1 * mediaMultiplier;
             if (eventModifiedUnemployment > 0.10) finalPopularity -= 1 * mediaMultiplier;
             if (regionalEconomyResult.gdpGrowthRate > 0.03) finalPopularity += 0.5 * mediaMultiplier;
-            
+
             // Felicidad regional afecta popularidad
             finalPopularity += (regionalEconomyResult.averageHappiness - 60) / 20;
-            
+
             // 10. Actualizar campaña si está activa
             let updatedCampaign = state.social.campaign;
             if (updatedCampaign && updatedCampaign.active) {
                 updatedCampaign = updateCampaign(updatedCampaign, 0);
-                
+
                 // Si faltan 3 meses para elecciones y no hay campaña, iniciarla
                 if (updatedCampaign && updatedCampaign.monthsUntilElection <= 0) {
                     // TODO: Ejecutar elecciones
@@ -779,16 +802,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 // Verificar si debemos iniciar campaña (3 meses antes de elección)
                 const monthsUntilElection = state.government.parliament.nextElectionDate ?
                     Math.floor((state.government.parliament.nextElectionDate - state.time.date.getTime()) / (1000 * 60 * 60 * 24 * 30)) : 999;
-                
+
                 if (monthsUntilElection <= 3 && monthsUntilElection > 0) {
                     updatedCampaign = startElectoralCampaign(monthsUntilElection);
                 }
             }
-            
+
             // === FIN DE SOCIAL SYSTEM UPDATES ===
 
             // === FASE 5: STORYTELLER INTEGRATION ===
-            
+
             // Actualizar alias para storyteller
             const stateWithAliases = {
                 ...state,
@@ -818,7 +841,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
             // Verificar eventos demorados
             const { triggeredEvent, updatedDelayed } = checkDelayedEvents(stateWithAliases);
-            
+
             // Verificar y avanzar storylines activas
             let updatedStorylines = [...state.activeStorylines];
             for (const activeStoryline of state.activeStorylines) {
@@ -829,7 +852,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         storylineDefinition,
                         stateWithAliases
                     );
-                    
+
                     if (shouldProgress) {
                         // Actualizar el stage de la storyline
                         updatedStorylines = updatedStorylines.map(sl =>
@@ -837,7 +860,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                                 ? { ...sl, currentStage: nextStage }
                                 : sl
                         );
-                        
+
                         // Si completó todas las etapas, remover la storyline
                         if (nextStage > storylineDefinition.stages.length) {
                             updatedStorylines = updatedStorylines.filter(
@@ -847,7 +870,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     }
                 }
             }
-            
+
             // Si no hay evento activo, intentar activar uno contextual
             let newContextualEvent = state.events.activeEvent;
             if (!newContextualEvent && !triggeredEvent) {
@@ -899,7 +922,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             if (newEconomicEvent && newEconomicEvent.remainingDuration && newEconomicEvent.remainingDuration > 0) {
                 // Decrement remaining duration
                 const newDuration = newEconomicEvent.remainingDuration - 1;
-                
+
                 // If duration expired, clear the event
                 if (newDuration <= 0) {
                     newEconomicEvent = null;
@@ -922,53 +945,11 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
             return {
                 ...state,
-                resources: { 
-                    ...state.resources, 
+                resources: {
+                    ...state.resources,
                     budget: newBudget,
                     stability: finalStability
                 },
-                stats: {
-                    ...state.stats,
-                    gdp: finalGdp,
-                    inflation,
-                    unemployment: eventModifiedUnemployment,
-                    popularity: Math.max(0, Math.min(100, finalPopularity)),
-                    population: state.economy.regions.reduce((sum, r) => sum + r.population, 0)
-                },
-                economy: {
-                    ...state.economy,
-                    regions: regionalEconomyResult.updatedRegions,
-                    industries: regionalEconomyResult.updatedIndustries,
-                    technologyLevel: newTechnologyLevel,
-                    researchPoints: newResearchPoints,
-                    economicEvent: newEconomicEvent
-                },
-                government: {
-                    ...state.government,
-                    parliament: {
-                        ...state.government.parliament,
-                        factions: updatedFactions,
-                        governmentSupport: newGovernmentSupport
-                    }
-                },
-                events: {
-                    ...state.events,
-                    activeEvent: newContextualEvent || state.events.activeEvent,
-                    parliamentaryEvent: parliamentaryEvent || state.events.parliamentaryEvent
-                },
-                social: {
-                    ...state.social,
-                    interestGroups: updatedGroups,
-                    activeProtests: finalProtests,
-                    mediaState: scandal && scandal.exposed ? {
-                        ...state.social.mediaState,
-                        scandalsExposed: state.social.mediaState.scandalsExposed + 1
-                    } : state.social.mediaState,
-                    campaign: updatedCampaign,
-                    socialTension: newSocialTension
-                },
-                // Fase 5: Actualizar campos de storyteller
-                delayedEvents: updatedDelayed,
                 activeStorylines: updatedStorylines,
                 ministers: state.government.ministers, // Mantener alias
                 date: {
@@ -1015,10 +996,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'RESOLVE_EVENT': {
             if (!state.events.activeEvent) return state;
-            
+
             const event = state.events.activeEvent;
             const choice = event.choices[action.payload.choiceIndex];
-            
+
             // Sistema nuevo (Fase 5) - usar consequences
             if ('consequences' in choice) {
                 const stateWithAliases = {
@@ -1029,7 +1010,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         year: state.time.date.getFullYear()
                     }
                 };
-                
+
                 const updates = applyConsequences(choice.consequences, stateWithAliases);
                 const newNotifications = state.notifications.filter(n => n.eventId !== event.id);
 
@@ -1041,9 +1022,9 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                         emergencyMode: {
                             active: true,
                             type: event.id.includes('earthquake') ? 'earthquake' as const :
-                                  event.id.includes('flood') ? 'flood' as const :
-                                  event.id.includes('pandemic') ? 'pandemic' as const :
-                                  'drought' as const,
+                                event.id.includes('flood') ? 'flood' as const :
+                                    event.id.includes('pandemic') ? 'pandemic' as const :
+                                        'drought' as const,
                             severity: 75,
                             turnsRemaining: 3,
                         },
@@ -1062,7 +1043,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     logs: [...state.logs, `Evento Resuelto: ${event.title} - ${choice.label}`],
                 };
             }
-            
+
             // Sistema viejo (compatibilidad) - usar effect
             if ('effect' in choice && typeof (choice as any).effect === 'function') {
                 const effect = (choice as any).effect(state);
@@ -1089,16 +1070,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'RESOLVE_PARLIAMENTARY_EVENT': {
             if (!state.events.parliamentaryEvent) return state;
-            
+
             const { choiceId } = action.payload;
             const event = state.events.parliamentaryEvent;
             const choice = event.choices.find(c => c.id === choiceId);
-            
+
             if (!choice) return state;
 
             // Aplicar efectos de la elección
             let newState = { ...state };
-            
+
             if (choice.outcome.effects.statChanges) {
                 newState.stats = {
                     ...newState.stats,
@@ -1393,13 +1374,13 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'UPDATE_BUDGET_ALLOCATION': {
             const { allocation } = action.payload;
-            
+
             // Validar que sume 100%
             const total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
             if (Math.abs(total - 100) > 0.01) {
                 return state; // Rechazar si no suma 100%
             }
-            
+
             return {
                 ...state,
                 economy: {
@@ -1412,11 +1393,11 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'SUBSIDIZE_INDUSTRY': {
             const { industryType, amount } = action.payload;
-            
+
             if (state.resources.budget < amount) {
                 return state; // No hay suficiente presupuesto
             }
-            
+
             const updatedIndustries = state.economy.industries.map(ind => {
                 if (ind.type === industryType) {
                     return {
@@ -1426,7 +1407,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 }
                 return ind;
             });
-            
+
             return {
                 ...state,
                 economy: {
@@ -1443,7 +1424,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'TAX_INDUSTRY': {
             const { industryType, taxRate } = action.payload;
-            
+
             const updatedIndustries = state.economy.industries.map(ind => {
                 if (ind.type === industryType) {
                     return {
@@ -1453,7 +1434,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 }
                 return ind;
             });
-            
+
             return {
                 ...state,
                 economy: {
@@ -1466,20 +1447,20 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'SIGN_TRADE_AGREEMENT': {
             const { countryId } = action.payload;
-            
+
             const targetCountry = state.diplomacy.countries.find(c => c.id === countryId);
             if (!targetCountry) return state;
-            
+
             // Requiere buena relación (>60)
             if (targetCountry.relation < 60) {
                 return state;
             }
-            
+
             // Verificar si ya existe
             if (state.economy.tradeAgreements.some(ta => ta.countryId === countryId)) {
                 return state;
             }
-            
+
             // Crear tratado
             const newAgreement: TradeAgreement = {
                 countryId,
@@ -1493,7 +1474,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     Industry: -0.005 // Competencia
                 }
             };
-            
+
             return {
                 ...state,
                 economy: {
@@ -1510,13 +1491,13 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'RESOLVE_PROTEST': {
             const { protestId, action: protestAction } = action.payload;
-            
+
             const protest = state.social.activeProtests.find(p => p.id === protestId);
             if (!protest) return state;
-            
+
             const group = state.social.interestGroups.find(g => g.id === protest.groupId);
             if (!group) return state;
-            
+
             const resolution = resolveProtestAction(
                 protest,
                 protestAction,
@@ -1524,28 +1505,28 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 state.resources.budget,
                 state.resources.politicalCapital
             );
-            
+
             if (!resolution.success && !resolution.protestEnded) {
                 // La acción falló
                 return state;
             }
-            
+
             // Aplicar consecuencias
             const updatedGroups = applyApprovalModifiers(
                 state.social.interestGroups,
                 [{ groupType: group.type, change: resolution.approvalChange, reason: 'Respuesta a protesta' }]
             );
-            
+
             const newProtests = resolution.protestEnded
                 ? state.social.activeProtests.filter(p => p.id !== protestId)
                 : state.social.activeProtests;
-            
+
             // Calcular nuevo HR
             let newHumanRights = state.social.humanRights;
             if (protestAction === 'suppress') {
                 newHumanRights -= 15; // Represión daña DDHH
             }
-            
+
             return {
                 ...state,
                 resources: {
@@ -1565,10 +1546,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'CENSOR_MEDIA': {
             const { newMediaState, consequences } = censorMedia(state.social.mediaState);
-            
+
             // Censurar también reduce HR y relaciones internacionales
             const newHumanRights = Math.max(0, state.social.humanRights - 10);
-            
+
             return {
                 ...state,
                 social: {
@@ -1582,13 +1563,13 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'FUND_PUBLIC_MEDIA': {
             const { amount } = action.payload;
-            
+
             if (state.resources.budget < amount) {
                 return state;
             }
-            
+
             const { newMediaState, consequences } = fundPublicMedia(state.social.mediaState, amount);
-            
+
             return {
                 ...state,
                 resources: {
@@ -1605,22 +1586,22 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'CAMPAIGN_RALLY': {
             const { targetGroup, budget } = action.payload;
-            
+
             if (!state.social.campaign || !state.social.campaign.active) {
                 return state;
             }
-            
+
             const result = holdRally(targetGroup, null, budget);
-            
+
             if (result.cost === 0) {
                 return state;
             }
-            
+
             const updatedGroups = applyApprovalModifiers(
                 state.social.interestGroups,
                 [{ groupType: targetGroup, change: result.approvalChange, reason: 'Mitin de campaña' }]
             );
-            
+
             return {
                 ...state,
                 resources: {
@@ -1645,16 +1626,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             if (!state.social.campaign || !state.social.campaign.active) {
                 return state;
             }
-            
+
             const result = launchSmearCampaign(state.resources.budget, state.resources.politicalCapital);
-            
+
             if (result.cost === 0) {
                 return state;
             }
-            
+
             // Si hay contraataque, perder popularidad
             const popularityChange = result.backfireRisk > 0 ? -15 : 0;
-            
+
             return {
                 ...state,
                 resources: {
@@ -1681,9 +1662,9 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'APPLY_APPROVAL_MODIFIERS': {
             const { modifiers } = action.payload;
-            
+
             const updatedGroups = applyApprovalModifiers(state.social.interestGroups, modifiers);
-            
+
             return {
                 ...state,
                 social: {
@@ -1695,7 +1676,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'ENTER_EMERGENCY_MODE': {
             const { type, severity, turnsRemaining } = action.payload;
-            
+
             return {
                 ...state,
                 emergencyMode: {
@@ -1711,30 +1692,30 @@ const gameReducer = (state: GameState, action: Action): GameState => {
 
         case 'EXIT_EMERGENCY_MODE': {
             if (!state.emergencyMode.active) return state;
-            
+
             const { allocation } = action.payload;
             const severity = state.emergencyMode.severity || 50;
-            
+
             // Calcular efectividad basada en la distribución del presupuesto
             const values = Object.values(allocation);
             const mean = 25; // 100% / 4 categorías
             const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / 4;
-            
+
             // Efectividad: 100% cuando está perfectamente balanceado (variance=0)
             // Disminuye según aumenta la variance
             // Fórmula ajustada: usar raíz cuadrada para suavizar el castigo
             // sqrt(variance) * 5 permite rangos más razonables
             const effectiveness = Math.max(0, Math.min(100, 100 - Math.sqrt(variance) * 5));
-            
+
             // Calcular impacto en popularidad: base negativo por el desastre, bonificación por buena gestión
             const popularityImpact = -(severity / 5) + (effectiveness / 100) * 15;
-            
+
             // Impacto en estabilidad
             const stabilityImpact = -(severity / 10) + (effectiveness / 100) * 5;
-            
+
             // Costo de presupuesto: base 50B + escala con severidad
             const budgetCost = (severity / 100) * 100 + 50;
-            
+
             return {
                 ...state,
                 emergencyMode: { active: false },
@@ -1756,13 +1737,13 @@ const gameReducer = (state: GameState, action: Action): GameState => {
         }
 
         // ==================== FASE 6: ACCIONES GEOPOLÍTICAS ====================
-        
+
         case 'REQUEST_JOIN_ALLIANCE': {
             const { allianceId } = action.payload;
             const alliance = ALLIANCES.find(a => a.id === allianceId);
-            
+
             if (!alliance) return state;
-            
+
             // Verificar si ya está en la alianza
             if (state.geopolitics.playerAlliances.includes(allianceId)) {
                 return {
@@ -1770,7 +1751,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     logs: [...state.logs, `Ya eres miembro de ${alliance.name}`]
                 };
             }
-            
+
             // Verificar requisitos
             const meetsReqs = meetsAllianceRequirements(alliance, {
                 gdp: state.stats.gdp,
@@ -1778,14 +1759,14 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 corruption: 100 - state.resources.stability, // Aproximación
                 ideology: state.player.ideology
             });
-            
+
             if (!meetsReqs.meets) {
                 return {
                     ...state,
                     logs: [...state.logs, `Solicitud rechazada por ${alliance.name}: ${meetsReqs.reasons[0]}`]
                 };
             }
-            
+
             // Unirse a la alianza (simplificado - en realidad requeriría votación)
             return {
                 ...state,
@@ -1796,13 +1777,13 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Te has unido a ${alliance.name}`]
             };
         }
-        
+
         case 'LEAVE_ALLIANCE': {
             const { allianceId } = action.payload;
             const alliance = ALLIANCES.find(a => a.id === allianceId);
-            
+
             if (!alliance) return state;
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -1812,10 +1793,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Has abandonado ${alliance.name}`]
             };
         }
-        
+
         case 'IMPOSE_SANCTIONS': {
             const { targetCountry, sanctionType } = action.payload;
-            
+
             const newSanction = {
                 id: `SANCTION_${Date.now()}`,
                 type: sanctionType,
@@ -1828,11 +1809,11 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                     tradeReduction: sanctionType === 'total' ? 60 : sanctionType === 'trade' ? 40 : 20
                 }
             };
-            
+
             // Impacto en relaciones
             const currentRelation = state.geopolitics.relations[targetCountry]?.relation || 50;
             const newRelation = Math.max(0, currentRelation - 40);
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -1859,16 +1840,16 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Sanciones ${sanctionType} impuestas a ${targetCountry}`]
             };
         }
-        
+
         case 'LIFT_SANCTIONS': {
             const { sanctionId } = action.payload;
             const sanction = state.geopolitics.activeSanctions.find(s => s.id === sanctionId);
-            
+
             if (!sanction) return state;
-            
+
             // Mejorar relaciones ligeramente
             const currentRelation = state.geopolitics.relations[sanction.targetCountry]?.relation || 50;
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -1885,10 +1866,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Sanciones levantadas contra ${sanction.targetCountry}`]
             };
         }
-        
+
         case 'DECLARE_WAR': {
             const { targetCountry, strategy } = action.payload;
-            
+
             const newWar = {
                 id: `WAR_${Date.now()}`,
                 state: 'limited_war' as const,
@@ -1899,7 +1880,7 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 casualties: 0,
                 monthlyCost: state.stats.gdp * 0.02 // 2% del GDP por mes
             };
-            
+
             // Relaciones destruidas
             return {
                 ...state,
@@ -1924,10 +1905,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: ¡Guerra declarada contra ${targetCountry}! Estrategia: ${strategy}`]
             };
         }
-        
+
         case 'CHANGE_WAR_STRATEGY': {
             const { warId, newStrategy } = action.payload;
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -1939,20 +1920,20 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Estrategia de guerra cambiada a ${newStrategy}`]
             };
         }
-        
+
         case 'PROPOSE_TRADE_AGREEMENT': {
             const { targetCountry } = action.payload;
-            
+
             // Verificar relación mínima
             const relation = state.geopolitics.relations[targetCountry]?.relation || 0;
-            
+
             if (relation < 40) {
                 return {
                     ...state,
                     logs: [...state.logs, `Relaciones insuficientes con ${targetCountry} para proponer acuerdo comercial`]
                 };
             }
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -1983,21 +1964,21 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Acuerdo comercial firmado con ${targetCountry}`]
             };
         }
-        
+
         case 'VOTE_UN_RESOLUTION': {
             const { resolutionId, vote } = action.payload;
-            
+
             const resolutionIndex = state.geopolitics.unitedNations.activeResolutions.findIndex(r => r.id === resolutionId);
             if (resolutionIndex === -1) return state;
-            
+
             const resolution = state.geopolitics.unitedNations.activeResolutions[resolutionIndex];
             const updatedResolution = { ...resolution };
-            
+
             // Remover voto previo si existe
             updatedResolution.votesInFavor = updatedResolution.votesInFavor.filter(id => id !== state.player.countryId);
             updatedResolution.votesAgainst = updatedResolution.votesAgainst.filter(id => id !== state.player.countryId);
             updatedResolution.votesAbstain = updatedResolution.votesAbstain.filter(id => id !== state.player.countryId);
-            
+
             // Agregar nuevo voto
             if (vote === 'favor') {
                 updatedResolution.votesInFavor.push(state.player.countryId);
@@ -2006,10 +1987,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             } else {
                 updatedResolution.votesAbstain.push(state.player.countryId);
             }
-            
+
             const newResolutions = [...state.geopolitics.unitedNations.activeResolutions];
             newResolutions[resolutionIndex] = updatedResolution;
-            
+
             return {
                 ...state,
                 geopolitics: {
@@ -2022,10 +2003,10 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Voto registrado: ${vote} en "${resolution.title}"`]
             };
         }
-        
+
         case 'SET_MIGRATION_POLICY': {
             const { openness, maxIntake } = action.payload;
-            
+
             return {
                 ...state,
                 geopolitics: {

@@ -4,6 +4,7 @@ import { Briefcase, AlertTriangle, Shield, Heart, Book, Truck, Leaf, DollarSign,
 import type { Minister, MinistryType } from '../types/politics';
 import { calculateMinistryEffectiveness } from '../systems/politics';
 import { MinisterSelectionModal } from './MinisterSelectionModal';
+import { AVAILABLE_MANDATES } from '../systems/mandates';
 import { MINISTER_TRAITS } from '../types/ministerTraits';
 
 const MINISTRY_ICONS: Record<MinistryType, React.ReactNode> = {
@@ -166,6 +167,48 @@ export const CabinetPanel = () => {
                                             style={{ width: `${minister.stats.corruption}%` }}
                                         />
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Mandate Section */}
+                            <div className="mb-4 p-3 bg-slate-900/80 rounded-lg border border-slate-700">
+                                <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Mandato Actual</div>
+                                {minister.mandate ? (
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <div className="text-sm font-bold text-white">
+                                                {AVAILABLE_MANDATES.find(m => m.id === minister.mandate?.id)?.name || 'Sin Mandato'}
+                                            </div>
+                                            <div className="text-xs text-slate-400">
+                                                {AVAILABLE_MANDATES.find(m => m.id === minister.mandate?.id)?.description}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-slate-500 italic">No hay mandato asignado</div>
+                                )}
+
+                                <div className="mt-3 pt-2 border-t border-slate-800">
+                                    <select
+                                        className="w-full bg-slate-800 text-xs text-slate-300 rounded border border-slate-600 p-1.5 focus:border-blue-500 outline-none"
+                                        value={minister.mandate?.id || ''}
+                                        onChange={(e) => {
+                                            const mandateId = e.target.value;
+                                            if (mandateId) {
+                                                dispatch({
+                                                    type: 'SET_MINISTER_MANDATE',
+                                                    payload: { ministerId: minister.id, mandateId }
+                                                } as any);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Seleccionar Mandato...</option>
+                                        {AVAILABLE_MANDATES.filter(m => m.ministry === minister.ministry).map(m => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.name} (Cost: {m.politicalCapitalCost} PC)
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 

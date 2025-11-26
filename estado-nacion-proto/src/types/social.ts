@@ -1,9 +1,9 @@
-// Tipos para el sistema social y político
+import type { SocialGroup } from './living_world';
 
 /**
  * Tipos de grupos de interés en la sociedad
  */
-export type InterestGroupType = 
+export type InterestGroupType =
     | 'Unions'        // Sindicatos - trabajadores organizados
     | 'Business'      // Empresarios - sector privado
     | 'Religious'     // Religiosos - instituciones religiosas
@@ -46,7 +46,7 @@ export interface Protest {
 /**
  * Acciones disponibles para manejar protestas
  */
-export type ProtestAction = 
+export type ProtestAction =
     | 'negotiate'  // Negociar y prometer cambios
     | 'suppress'   // Reprimir con policía
     | 'ignore'     // Ignorar (riesgo de escalada)
@@ -80,7 +80,7 @@ export interface ElectoralCampaign {
 /**
  * Tipo de evento de campaña
  */
-export type CampaignEventType = 
+export type CampaignEventType =
     | 'rally'          // Mitin público
     | 'smear'          // Campaña sucia
     | 'debate'         // Debate político
@@ -131,7 +131,8 @@ export interface CampaignChoice {
  * Datos sociales del país
  */
 export interface SocialData {
-    interestGroups: InterestGroup[];
+    groups: SocialGroup[]; // New POPs system
+    interestGroups: InterestGroup[]; // Legacy system (to be deprecated or integrated)
     activeProtests: Protest[];
     mediaState: MediaState;
     campaign: ElectoralCampaign | null;
