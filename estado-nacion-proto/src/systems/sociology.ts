@@ -24,14 +24,16 @@ export const updatePopSatisfaction = (pops: SocialGroup[], state: GameState): So
 
         // 1. Economic Impact
         // If GDP is growing, everyone gets a small boost, elites get more
-        if (state.economy.gdpGrowth > 2) {
+        const growthRate = state.economy.gdpGrowthRate ?? 0;
+        if (growthRate > 0.02) {
             change += pop.socialClass === 'Elite' ? 2 : 1;
-        } else if (state.economy.gdpGrowth < 0) {
+        } else if (growthRate < 0) {
             change -= pop.socialClass === 'Lower' ? 3 : 1;
         }
 
         // 2. Unemployment
-        if (state.economy.unemploymentRate > 10) {
+        const unemploymentRate = state.economy.unemploymentRate ?? 0;
+        if (unemploymentRate > 0.1) {
             if (pop.socialClass === 'Lower' || pop.socialClass === 'Middle') {
                 change -= 2;
             }

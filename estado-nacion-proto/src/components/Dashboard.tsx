@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { Play, Pause, DollarSign, Users, Activity, AlertTriangle, Vote, Globe, Briefcase, TrendingUp, Shield, Swords, Save, FolderOpen } from 'lucide-react';
 import { DiplomacyPanel } from './DiplomacyPanel';
@@ -12,20 +12,82 @@ import { NotificationTray } from './NotificationTray';
 import { WorldMap } from './WorldMap';
 import { VotingResultsModal } from './VotingResultsModal';
 import { ParliamentaryEventModal } from './ParliamentaryEventModal';
-<span className="text-2xl">🏛️</span>
-                            </div >
-    <div>
-        <h1 className="font-bold text-lg leading-tight">{player.countryName}</h1>
-        <div className="text-xs text-slate-400 flex items-center gap-2">
-            <span className="font-medium text-blue-400">{player.name}</span>
-            <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-            <span>{player.partyName} ({player.ideology})</span>
-        </div>
-    </div>
-                        </div >
+import { DecisionStack } from './DecisionStack';
+import { EconomyPanel } from './EconomyPanel';
+import EconomicEventModal from './EconomicEventModal';
+import { SocialMonitor } from './SocialMonitor';
+import { UNPanel } from './UNPanel';
+import { WarRoom } from './WarRoom';
+import { AlliancesPanel } from './AlliancesPanel';
+import { SaveLoadMenu } from './SaveLoadMenu';
+import { autoSave } from '../utils/saveSystem';
 
-    {/* Navigation Tabs */ }
-    < div className = "flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50" >
+export const Dashboard = () => {
+    const { state, dispatch } = useGame();
+    const { player, resources, stats, time, diplomacy, parliament, economy } = state;
+    const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
+    const [view, setView] = useState<'office' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances'>('office');
+    const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+    const [saveMenuMode, setSaveMenuMode] = useState<'save' | 'load'>('save');
+
+    // Auto-save every 3 minutes and when important actions happen
+    useEffect(() => {
+        if (!state.gameStarted) return;
+
+        const interval = setInterval(() => {
+            autoSave(state);
+            console.log('��ī Auto-guardado completado');
+        }, 3 * 60 * 1000); // 3 minutos
+
+        return () => clearInterval(interval);
+    }, [state]);
+
+    // Auto-save on critical state changes
+    useEffect(() => {
+        if (!state.gameStarted) return;
+        
+        // Save when time advances significantly (every 3 turns)
+        const currentTurn = state.time.date.getMonth() + (state.time.date.getFullYear() - 2025) * 12;
+        if (currentTurn % 3 === 0 && state.time.isPlaying) {
+            autoSave(state);
+        }
+    }, [state.time.date, state.gameStarted, state.time.isPlaying]);
+
+    const handleOpenSaveMenu = (mode: 'save' | 'load') => {
+        setSaveMenuMode(mode);
+        setSaveMenuOpen(true);
+    };
+
+    const formatMoney = (amount: number) => {
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', notation: 'compact' }).format(amount * 1_000_000_000);
+    };
+
+    const formatDate = (date: Date) => {
+        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30">
+            {/* Top Bar */}
+            <header className="bg-slate-800/90 backdrop-blur-md border-b border-slate-700 sticky top-0 z-20 shadow-lg">
+                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-blue-500/20 shadow-lg">
+                                <span className="text-2xl">�������</span>
+                            </div>
+                            <div>
+                                <h1 className="font-bold text-lg leading-tight">{player.countryName}</h1>
+                                <div className="text-xs text-slate-400 flex items-center gap-2">
+                                    <span className="font-medium text-blue-400">{player.name}</span>
+                                    <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                    <span>{player.partyName} ({player.ideology})</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
                             <button
                                 onClick={() => setView('office')}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${view === 'office'
@@ -64,7 +126,7 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                     }`}
                             >
                                 <Briefcase size={16} />
-                                Gestión
+                                Gesti+�n
                             </button>
                             <button
                                 onClick={() => setView('economy')}
@@ -74,7 +136,7 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                     }`}
                             >
                                 <TrendingUp size={16} />
-                                Economía
+                                Econom+�a
                             </button>
                             <button
                                 onClick={() => setView('social')}
@@ -126,60 +188,60 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                 <Swords size={16} />
                                 Guerra
                             </button>
-                        </div >
-                    </div >
+                        </div>
+                    </div>
 
-    <div className="flex items-center gap-6">
-        {/* Save/Load Buttons */}
-        <div className="flex gap-2">
-            <button
-                onClick={() => handleOpenSaveMenu('save')}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg"
-                title="Guardar Partida"
-            >
-                <Save size={18} />
-                <span className="hidden sm:inline">Guardar</span>
-            </button>
-            <button
-                onClick={() => handleOpenSaveMenu('load')}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition-all"
-                title="Cargar Partida"
-            >
-                <FolderOpen size={18} />
-                <span className="hidden sm:inline">Cargar</span>
-            </button>
-        </div>
+                    <div className="flex items-center gap-6">
+                        {/* Save/Load Buttons */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleOpenSaveMenu('save')}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-lg"
+                                title="Guardar Partida"
+                            >
+                                <Save size={18} />
+                                <span className="hidden sm:inline">Guardar</span>
+                            </button>
+                            <button
+                                onClick={() => handleOpenSaveMenu('load')}
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+                                title="Cargar Partida"
+                            >
+                                <FolderOpen size={18} />
+                                <span className="hidden sm:inline">Cargar</span>
+                            </button>
+                        </div>
 
-        <div className="flex items-center gap-4 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-700/50">
-            <div className="text-right">
-                <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Fecha</div>
-                <div className="font-mono font-medium text-blue-200">{formatDate(time.date)}</div>
-            </div>
-            <div className="h-8 w-px bg-slate-700"></div>
-            <div className="flex items-center gap-1">
-                <button
-                    onClick={() => dispatch({ type: 'TOGGLE_PAUSE' })}
-                    className={`p-2 rounded-full hover:bg-slate-700 transition-colors ${!time.isPlaying ? 'text-yellow-400 bg-yellow-400/10' : 'text-slate-300'}`}
-                >
-                    {time.isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
-                    {[1, 2, 3].map((s) => (
-                        <button
-                            key={s}
-                            onClick={() => dispatch({ type: 'SET_SPEED', payload: s as 1 | 2 | 3 })}
-                            className={`px-2 py-1 text-xs font-bold rounded ${time.speed === s ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            {s}x
-                        </button>
-                    ))}
+                        <div className="flex items-center gap-4 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-700/50">
+                            <div className="text-right">
+                                <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Fecha</div>
+                                <div className="font-mono font-medium text-blue-200">{formatDate(time.date)}</div>
+                            </div>
+                            <div className="h-8 w-px bg-slate-700"></div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => dispatch({ type: 'TOGGLE_PAUSE' })}
+                                    className={`p-2 rounded-full hover:bg-slate-700 transition-colors ${!time.isPlaying ? 'text-yellow-400 bg-yellow-400/10' : 'text-slate-300'}`}
+                                >
+                                    {time.isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                                </button>
+                                <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                                    {[1, 2, 3].map((s) => (
+                                        <button
+                                            key={s}
+                                            onClick={() => dispatch({ type: 'SET_SPEED', payload: s as 1 | 2 | 3 })}
+                                            className={`px-2 py-1 text-xs font-bold rounded ${time.speed === s ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                        >
+                                            {s}x
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <NotificationTray />
+                    </div>
                 </div>
-            </div>
-        </div>
-        <NotificationTray />
-    </div>
-                </div >
-            </header >
+            </header>
 
             <main className="max-w-7xl mx-auto p-6">
                 {view === 'office' ? (
@@ -201,7 +263,7 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-400 flex items-center gap-2"><Activity size={14} /> Capital Político</span>
+                                            <span className="text-slate-400 flex items-center gap-2"><Activity size={14} /> Capital Pol+�tico</span>
                                             <span className="font-mono text-blue-400">{resources.politicalCapital} pts</span>
                                         </div>
                                         <div className="w-full bg-slate-900 rounded-full h-1.5">
@@ -229,7 +291,7 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                         <div className="font-mono text-lg text-slate-200">{formatMoney(stats.gdp)}</div>
                                     </div>
                                     <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                                        <div className="text-slate-500 text-xs mb-1">Población</div>
+                                        <div className="text-slate-500 text-xs mb-1">Poblaci+�n</div>
                                         <div className="font-mono text-lg text-slate-200">{stats.population}M</div>
                                     </div>
                                     <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
@@ -237,12 +299,12 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                                         <div className="font-mono text-lg text-rose-400">{(stats.unemployment * 100).toFixed(1)}%</div>
                                     </div>
                                     <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                                        <div className="text-slate-500 text-xs mb-1">Inflación</div>
+                                        <div className="text-slate-500 text-xs mb-1">Inflaci+�n</div>
                                         <div className="font-mono text-lg text-rose-400">{(stats.inflation * 100).toFixed(1)}%</div>
                                     </div>
                                     <div className="col-span-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
                                         <div className="flex justify-between items-center mb-2">
-                                            <div className="text-slate-500 text-xs">Aprobación Presidencial</div>
+                                            <div className="text-slate-500 text-xs">Aprobaci+�n Presidencial</div>
                                             <div className="font-bold text-blue-400">{stats.popularity.toFixed(1)}%</div>
                                         </div>
                                         <div className="w-full bg-slate-800 rounded-full h-2">
@@ -312,36 +374,35 @@ import { ParliamentaryEventModal } from './ParliamentaryEventModal';
                 )}
             </main>
 
+            <DecisionStack />
+
             <EventModal />
             <EmergencyModePanel />
             <ParliamentaryEventModal />
+            
+            {/* Voting Results Modal */}
+            {parliament.lastVoteResult && (
+                <VotingResultsModal
+                    voteResult={parliament.lastVoteResult}
+                    onClose={() => dispatch({ type: 'CLEAR_VOTE_RESULT' })}
+                />
+            )}
 
-{/* Voting Results Modal */ }
-{
-    parliament.lastVoteResult && (
-        <VotingResultsModal
-            voteResult={parliament.lastVoteResult}
-            onClose={() => dispatch({ type: 'CLEAR_VOTE_RESULT' })}
-        />
-    )
-}
+            {/* Economic Event Modal */}
+            {economy.economicEvent && economy.economicEvent.remainingDuration === economy.economicEvent.duration && (
+                <EconomicEventModal
+                    event={economy.economicEvent}
+                    onClose={() => {}} // Auto closes - modal shows once at event start
+                />
+            )}
 
-{/* Economic Event Modal */ }
-{
-    economy.economicEvent && economy.economicEvent.remainingDuration === economy.economicEvent.duration && (
-        <EconomicEventModal
-            event={economy.economicEvent}
-            onClose={() => { }} // Auto closes - modal shows once at event start
-        />
-    )
-}
-
-{/* Save/Load Menu */ }
-<SaveLoadMenu
-    isOpen={saveMenuOpen}
-    onClose={() => setSaveMenuOpen(false)}
-    mode={saveMenuMode}
-/>
-        </div >
+            {/* Save/Load Menu */}
+            <SaveLoadMenu 
+                isOpen={saveMenuOpen} 
+                onClose={() => setSaveMenuOpen(false)} 
+                mode={saveMenuMode} 
+            />
+        </div>
     );
 };
+

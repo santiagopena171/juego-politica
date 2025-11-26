@@ -29,7 +29,8 @@ export const evaluateTurnLogic = (state: GameState): { newState: GameState; newD
 
     // 5. General Decision Generation
     // Example: High Unemployment
-    if (newState.economy.unemploymentRate > 20) {
+    const unemploymentRate = newState.economy.unemploymentRate ?? 0;
+    if (unemploymentRate > 0.2) {
         newDecisions.push({
             id: `unemployment_crisis_${Date.now()}`,
             source: 'Labor Ministry',
@@ -44,7 +45,7 @@ export const evaluateTurnLogic = (state: GameState): { newState: GameState; newD
                     effect: (s) => ({
                         economy: {
                             ...s.economy,
-                            unemploymentRate: Math.max(0, s.economy.unemploymentRate - 2),
+                            unemploymentRate: Math.max(0, s.economy.unemploymentRate - 0.02),
                             budgetSurplus: s.economy.budgetSurplus - 500
                         }
                     })
@@ -53,9 +54,9 @@ export const evaluateTurnLogic = (state: GameState): { newState: GameState; newD
                     id: 'ignore',
                     label: 'Do Nothing (Stability -10)',
                     effect: (s) => ({
-                        stats: {
-                            ...s.stats,
-                            stability: Math.max(0, s.stats.stability - 10)
+                        resources: {
+                            ...s.resources,
+                            stability: Math.max(0, s.resources.stability - 10)
                         }
                     })
                 }

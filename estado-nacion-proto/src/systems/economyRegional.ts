@@ -1,4 +1,4 @@
-import type { Region, Industry, IndustryType, BudgetAllocation, BudgetEffects, EconomicData } from '../types/economy';
+﻿import type { Region, Industry, IndustryType, BudgetAllocation, BudgetEffects, EconomicData } from '../types/economy';
 
 // Nombres de regiones por tipo
 const REGION_NAMES = {
@@ -90,7 +90,9 @@ export function generateRegions(
             unemployment,
             happiness: Math.max(30, Math.min(90, happiness)),
             development: Math.round(development),
-            infrastructure: Math.round(infrastructure)
+            infrastructure: Math.round(infrastructure),
+            pops: [],
+            classStrugglelevel: 10
         });
     }
     
@@ -213,7 +215,7 @@ export function calculateRegionalEconomy(
         const industryGrowthRate = industryGrowth[region.dominantIndustry] || 0.02;
         
         // Crecimiento del PIB regional
-        const newGdpContribution = region.gdpContribution * (1 + industryGrowthRate);
+        let newGdpContribution = region.gdpContribution * (1 + industryGrowthRate);
         
         // Efectos del presupuesto en la región
         let newUnemployment = region.unemployment;
@@ -243,6 +245,16 @@ export function calculateRegionalEconomy(
             newHappiness += ((budgetAllocation.SocialWelfare - 10) / 100) * 1.5;
         }
         
+        // Calcular efectos de POPs en economia regional
+        region.pops.forEach(pop => {
+            if (pop.radicalization > 70) {
+                newGdpContribution *= 0.9;
+            }
+            if (pop.satisfaction < 30) {
+                newHappiness -= 5;
+            }
+        });
+
         // Desarrollo afecta felicidad
         newHappiness += (newDevelopment - region.development) * 0.5;
         
@@ -336,3 +348,5 @@ export function validateBudgetAllocation(allocation: BudgetAllocation): boolean 
     const total = Object.values(allocation).reduce((sum, val) => sum + val, 0);
     return Math.abs(total - 100) < 0.01; // Tolerancia de 0.01%
 }
+
+

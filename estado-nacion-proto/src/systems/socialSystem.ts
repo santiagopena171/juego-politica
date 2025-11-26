@@ -437,6 +437,7 @@ export const initializeSocialData = (
     ideology: 'Left' | 'Center' | 'Right'
 ): SocialData => {
     return {
+        groups: [],
         interestGroups: generateInterestGroups(population, ideology),
         activeProtests: [],
         mediaState: {

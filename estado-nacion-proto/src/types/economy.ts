@@ -1,3 +1,5 @@
+﻿import type { SocialGroup } from './living_world';
+
 // Tipos económicos para el sistema económico avanzado
 
 /**
@@ -35,6 +37,8 @@ export interface Region {
     happiness: number; // Felicidad/satisfacción regional (0-100)
     development: number; // Nivel de desarrollo (0-100)
     infrastructure: number; // Calidad de infraestructura (0-100)
+    pops: SocialGroup[]; // NUEVO
+    classStrugglelevel: number; // 0-100, NUEVO
 }
 
 /**
@@ -127,3 +131,5 @@ export interface IndustryPolicy {
     taxRate: number; // % impuesto adicional
     regulations: 'Low' | 'Medium' | 'High';
 }
+
+

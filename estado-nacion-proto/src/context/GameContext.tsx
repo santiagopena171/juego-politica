@@ -4,6 +4,7 @@ import { EVENTS, type GameEvent } from '../data/events';
 import { type Country } from '../data/countries';
 import { loadCountries } from '../data/loader';
 import type { Minister, Parliament, Project, Situation } from '../types/politics';
+import type { MinisterMandate } from '../types/living_world';
 import type { Bill, FactionVote, ParliamentaryEvent } from '../types/parliament';
 import type { Region, Industry, BudgetAllocation, TradeAgreement, EconomicEvent } from '../types/economy';
 import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } from '../types/social';
@@ -44,6 +45,7 @@ import {
     simulateWarRound,
     calculateSanctionImpact
 } from '../systems/diplomacy';
+import { calculateMandateEffects, getMandateById, updateMandateProgress } from '../systems/mandates';
 import { STORYLINES } from '../data/storylines';
 import { ALLIANCES, getAlliancesForCountry, meetsAllianceRequirements } from '../data/alliances';
 import { UNITED_NATIONS, determineAIVote, calculateResolutionResult } from '../data/unitedNations';
@@ -255,6 +257,7 @@ type Action =
     | { type: 'RESOLVE_EVENT'; payload: { choiceIndex: number } }
     | { type: 'RESOLVE_PARLIAMENTARY_EVENT'; payload: { choiceId: string } }
     | { type: 'DIPLOMACY_ACTION'; payload: { countryId: string; action: 'IMPROVE' | 'HARM' | 'TRADE_TREATY' | 'DEFENSE_TREATY' } }
+    | { type: 'SET_MINISTER_MANDATE'; payload: { ministerId: string; mandateId: string } }
     | { type: 'APPOINT_MINISTER'; payload: { minister: Minister } }
     | { type: 'FIRE_MINISTER'; payload: { ministerId: string } }
     | { type: 'PROPOSE_BILL'; payload: { bill: any } } // any = Bill type from parliament.ts
@@ -943,20 +946,92 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 }
             }
 
-            return {
+            const ministersWithProgress = state.government.ministers.map(minister =>
+                updateMandateProgress(minister, state)
+            );
+
+            const baseMonthlyState: GameState = {
                 ...state,
                 resources: {
                     ...state.resources,
                     budget: newBudget,
                     stability: finalStability
                 },
+                stats: {
+                    ...state.stats,
+                    gdp: finalGdp,
+                    inflation,
+                    unemployment: eventModifiedUnemployment,
+                    popularity: Math.max(0, Math.min(100, finalPopularity))
+                },
+                economy: {
+                    ...state.economy,
+                    regions: regionalEconomyResult.updatedRegions,
+                    industries: regionalEconomyResult.updatedIndustries,
+                    technologyLevel: newTechnologyLevel,
+                    researchPoints: newResearchPoints,
+                    economicEvent: newEconomicEvent,
+                    budgetSurplus,
+                    gdpGrowthRate: regionalEconomyResult.gdpGrowthRate,
+                    unemploymentRate: eventModifiedUnemployment,
+                    averageHappiness: regionalEconomyResult.averageHappiness
+                },
+                social: {
+                    ...state.social,
+                    interestGroups: updatedGroups,
+                    activeProtests: finalProtests,
+                    socialTension: newSocialTension,
+                    campaign: updatedCampaign
+                },
+                government: {
+                    ...state.government,
+                    ministers: ministersWithProgress,
+                    parliament: {
+                        ...state.government.parliament,
+                        factions: updatedFactions,
+                        governmentSupport: newGovernmentSupport
+                    }
+                },
+                events: {
+                    ...state.events,
+                    activeEvent: newContextualEvent || null,
+                    parliamentaryEvent: parliamentaryEvent || state.events.parliamentaryEvent || null
+                },
+                delayedEvents: updatedDelayed,
                 activeStorylines: updatedStorylines,
-                ministers: state.government.ministers, // Mantener alias
+                ministers: ministersWithProgress, // Alias para storyteller
                 date: {
                     month: state.time.date.getMonth() + 1,
                     year: state.time.date.getFullYear()
-                },
-                logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: Cierre de mes. Crecimiento ${(regionalEconomyResult.gdpGrowthRate * 100).toFixed(1)}%`],
+                }
+            };
+
+            const { newState: updatedStateAfterBrain, newDecisions } = evaluateTurnLogic(baseMonthlyState);
+
+            const decisionIds = new Set(updatedStateAfterBrain.decisionStack.map(d => d.id));
+            const mergedDecisionStack = [
+                ...updatedStateAfterBrain.decisionStack,
+                ...newDecisions.filter(d => !decisionIds.has(d.id))
+            ];
+
+            const updatedStateAfterBrainWithDecisions: GameState = {
+                ...updatedStateAfterBrain,
+                decisionStack: mergedDecisionStack
+            };
+
+            // Aplicar efectos de mandatos ministeriales
+            const mandateEffects = calculateMandateEffects(updatedStateAfterBrainWithDecisions);
+            const stateWithMandates = {
+                ...updatedStateAfterBrainWithDecisions,
+                ...mandateEffects,
+                stats: { ...updatedStateAfterBrainWithDecisions.stats, ...mandateEffects.stats },
+                resources: { ...updatedStateAfterBrainWithDecisions.resources, ...mandateEffects.resources },
+                economy: { ...updatedStateAfterBrainWithDecisions.economy, ...mandateEffects.economy }
+            };
+
+            return {
+                ...stateWithMandates,
+                logs: [...stateWithMandates.logs, `${state.time.date.toISOString().split('T')[0]}: Cierre de mes. Crecimiento ${(regionalEconomyResult.gdpGrowthRate * 100).toFixed(1)}%`],
             };
         }
 
@@ -1166,6 +1241,41 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 diplomacy: { ...state.diplomacy, countries },
                 resources: { ...state.resources, politicalCapital: state.resources.politicalCapital - 5 },
                 logs: [...state.logs, `Diplomacia: Acción con ${countryId}`],
+            };
+        }
+
+        case 'SET_MINISTER_MANDATE': {
+            const { ministerId, mandateId } = action.payload as { ministerId: string; mandateId: string };
+            const mandateDef = getMandateById(mandateId);
+
+            if (!mandateDef) return state;
+
+            if (state.resources.politicalCapital < mandateDef.politicalCapitalCost) {
+                return state;
+            }
+
+            const newMandate: MinisterMandate = {
+                id: mandateId,
+                type: mandateDef.type,
+                assignedAt: state.time.date,
+                progress: 0,
+                lastReport: `Mandato "${mandateDef.name}" asignado`
+            };
+
+            return {
+                ...state,
+                government: {
+                    ...state.government,
+                    ministers: state.government.ministers.map(m =>
+                        m.id === ministerId
+                            ? { ...m, mandate: newMandate }
+                            : m
+                    )
+                },
+                resources: {
+                    ...state.resources,
+                    politicalCapital: state.resources.politicalCapital - mandateDef.politicalCapitalCost
+                }
             };
         }
 
