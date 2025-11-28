@@ -15,19 +15,21 @@ import {
     Clock,
     HelpCircle,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    FileText,
+    AlertCircle
 } from 'lucide-react';
 import type { EventCategory, EventChoice } from '../data/events';
 
-// Iconos por categoría
-const CATEGORY_ICONS: Record<EventCategory, { icon: typeof AlertTriangle; color: string; bg: string; label: string }> = {
-    economic: { icon: TrendingUp, color: 'text-green-500', bg: 'bg-green-500/20', label: 'Económico' },
-    political: { icon: Landmark, color: 'text-blue-500', bg: 'bg-blue-500/20', label: 'Político' },
-    social: { icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/20', label: 'Social' },
-    diplomatic: { icon: Globe, color: 'text-cyan-500', bg: 'bg-cyan-500/20', label: 'Diplomático' },
-    disaster: { icon: CloudRain, color: 'text-red-500', bg: 'bg-red-500/20', label: 'Desastre' },
-    scandal: { icon: Newspaper, color: 'text-orange-500', bg: 'bg-orange-500/20', label: 'Escándalo' },
-    storyline: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/20', label: 'Historia' },
+// Iconos por categoría con estilo premium
+const CATEGORY_ICONS: Record<EventCategory, { icon: typeof AlertTriangle; color: string; glow: string; label: string; priority: string }> = {
+    economic: { icon: TrendingUp, color: 'text-emerald-400', glow: 'shadow-glow-cyan', label: 'Económico', priority: 'NORMAL' },
+    political: { icon: Landmark, color: 'text-blue-400', glow: 'shadow-glow', label: 'Político', priority: 'ALTA' },
+    social: { icon: Users, color: 'text-purple-400', glow: 'shadow-glow', label: 'Social', priority: 'MEDIA' },
+    diplomatic: { icon: Globe, color: 'text-cyan-400', glow: 'shadow-glow-cyan', label: 'Diplomático', priority: 'ALTA' },
+    disaster: { icon: CloudRain, color: 'text-rose-400', glow: 'shadow-glow-rose', label: 'Desastre', priority: 'CRÍTICA' },
+    scandal: { icon: Newspaper, color: 'text-amber-400', glow: 'shadow-glow-amber', label: 'Escándalo', priority: 'ALTA' },
+    storyline: { icon: FileText, color: 'text-amber-400', glow: 'shadow-glow-amber', label: 'Historia', priority: 'ESPECIAL' },
 };
 
 export const EventModal = () => {
@@ -183,33 +185,47 @@ export const EventModal = () => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden max-h-[90vh] flex flex-col">
-                {/* Header */}
-                <div className="bg-slate-900 p-6 border-b border-slate-700 flex items-center gap-4">
-                    <div className={`${categoryInfo.bg} p-3 rounded-full`}>
-                        <CategoryIcon className={`w-8 h-8 ${categoryInfo.color}`} />
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-6 animate-fade-in">
+            <div className="dossier-panel max-w-4xl w-full max-h-[90vh] flex flex-col animate-slide-up">
+                {/* Classified Header */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 border-b border-amber-400/30">
+                    <div className="classified-header">
+                        <Lock className="w-4 h-4" />
+                        <span>CLASIFICADO - {categoryInfo.priority}</span>
+                        <div className="flex-1 border-t border-amber-400/20 mx-3" />
+                        <span>{categoryInfo.label}</span>
                     </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-bold text-white">{activeEvent.title}</h2>
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${categoryInfo.bg} ${categoryInfo.color}`}>
-                                {categoryInfo.label}
-                            </span>
+                    
+                    <div className="flex items-center gap-4 mt-3">
+                        <div className={`p-4 rounded-xl ${categoryInfo.glow} bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10`}>
+                            <CategoryIcon className={`w-8 h-8 ${categoryInfo.color}`} />
                         </div>
-                        <p className="text-slate-400 text-sm uppercase tracking-wider">Decisión Presidencial Requerida</p>
+                        <div className="flex-1">
+                            <h2 className="font-display text-3xl font-bold text-white mb-1">
+                                {activeEvent.title}
+                            </h2>
+                            <p className="text-sm text-slate-400 font-mono uppercase tracking-wider">
+                                Decisión Presidencial Requerida
+                            </p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Body */}
-                <div className="p-8 overflow-y-auto flex-1">
-                    <p className="text-lg text-slate-300 leading-relaxed mb-8">
-                        {activeEvent.description}
-                    </p>
+                <div className="p-8 overflow-y-auto flex-1 space-y-6">
+                    {/* Description */}
+                    <div className="glass-panel-light p-6 border-l-4 border-l-cyan-400">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-lg text-slate-200 leading-relaxed">
+                                {activeEvent.description}
+                            </p>
+                        </div>
+                    </div>
 
                     {/* Context info */}
                     {activeEvent.chainStage && (
-                        <div className="mb-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                        <div className="glass-panel-light p-4 border-l-4 border-l-purple-400">
                             <div className="flex items-center gap-2 text-purple-400">
                                 <Clock className="w-4 h-4" />
                                 <span className="text-sm font-semibold">
@@ -219,88 +235,110 @@ export const EventModal = () => {
                         </div>
                     )}
 
-                    {/* Choices */}
-                    <div className="grid gap-4">
-                        {activeEvent.choices.map((choice, index) => {
-                            const affordability = canAffordChoice(choice);
-                            const isExpanded = expandedChoice === index;
-                            const isDisabled = !affordability.canAfford;
+                    {/* Choices - Action Cards */}
+                    <div>
+                        <h3 className="text-xs font-mono uppercase tracking-widest text-amber-400 mb-4 flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            Opciones Disponibles
+                        </h3>
+                        <div className="grid gap-3">
+                            {activeEvent.choices.map((choice, index) => {
+                                const affordability = canAffordChoice(choice);
+                                const isExpanded = expandedChoice === index;
+                                const isDisabled = !affordability.canAfford;
 
-                            return (
-                                <div 
-                                    key={index}
-                                    className={`border rounded-lg overflow-hidden transition-all ${
-                                        isDisabled 
-                                            ? 'bg-slate-800 border-slate-700 opacity-60' 
-                                            : 'bg-slate-700 border-slate-600 hover:border-amber-500/50'
-                                    }`}
-                                >
-                                    <button
-                                        onClick={() => {
-                                            if (!isDisabled) {
-                                                handleChoice(index);
-                                            }
-                                        }}
-                                        disabled={isDisabled}
-                                        className="w-full text-left p-4 transition-all disabled:cursor-not-allowed"
+                                return (
+                                    <div 
+                                        key={index}
+                                        className={`glass-panel-light border-l-4 transition-all ${
+                                            isDisabled 
+                                                ? 'border-l-slate-600 opacity-50' 
+                                                : 'border-l-cyan-400 hover:border-l-amber-400 hover:shadow-glow-amber'
+                                        }`}
                                     >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <div className={`font-bold ${isDisabled ? 'text-slate-500' : 'text-white'}`}>
-                                                        {choice.label}
+                                        <button
+                                            onClick={() => {
+                                                if (!isDisabled) {
+                                                    handleChoice(index);
+                                                }
+                                            }}
+                                            disabled={isDisabled}
+                                            className="w-full text-left p-5 transition-all disabled:cursor-not-allowed"
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className={`font-display text-xl font-bold ${
+                                                            isDisabled ? 'text-slate-500' : 'text-white'
+                                                        }`}>
+                                                            {choice.label}
+                                                        </span>
+                                                        {isDisabled && (
+                                                            <div className="flex items-center gap-1 px-2 py-1 bg-rose-500/20 border border-rose-500/30 rounded">
+                                                                <Lock className="w-3 h-3 text-rose-400" />
+                                                                <span className="text-xs text-rose-400 font-semibold">BLOQUEADO</span>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    {isDisabled && (
-                                                        <Lock className="w-4 h-4 text-red-400" />
+                                                    
+                                                    <p className={`text-sm mb-3 ${
+                                                        isDisabled ? 'text-slate-600' : 'text-slate-300'
+                                                    }`}>
+                                                        {choice.description}
+                                                    </p>
+                                                    
+                                                    {/* Requirements warning */}
+                                                    {!affordability.canAfford && (
+                                                        <div className="mb-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg">
+                                                            <div className="flex items-start gap-2">
+                                                                <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
+                                                                <div className="text-xs text-rose-400 space-y-1">
+                                                                    {affordability.reasons.map((reason, i) => (
+                                                                        <div key={i}>• {reason}</div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     )}
-                                                </div>
-                                                <div className={`text-sm ${isDisabled ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                    {choice.description}
-                                                </div>
-                                                
-                                                {/* Requirements warning */}
-                                                {!affordability.canAfford && (
-                                                    <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
-                                                        <div className="text-xs text-red-400">
-                                                            ⚠️ {affordability.reasons.join(', ')}
-                                                        </div>
-                                                    </div>
-                                                )}
 
-                                                {/* Tooltip */}
-                                                {choice.tooltip && (
-                                                    <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded">
-                                                        <div className="text-xs text-amber-400">
-                                                            💡 {choice.tooltip}
+                                                    {/* Tooltip */}
+                                                    {choice.tooltip && (
+                                                        <div className="mb-3 p-3 bg-amber-500/10 border border-amber-400/30 rounded-lg">
+                                                            <div className="flex items-start gap-2">
+                                                                <HelpCircle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                                                <div className="text-xs text-amber-300">
+                                                                    {choice.tooltip}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
 
-                                                {/* Consequences */}
-                                                {renderConsequences(choice, isExpanded)}
+                                                    {/* Consequences */}
+                                                    {renderConsequences(choice, isExpanded)}
+                                                </div>
+
+                                                {/* Expand button */}
+                                                {'consequences' in choice && choice.consequences && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setExpandedChoice(isExpanded ? null : index);
+                                                        }}
+                                                        className="p-2 hover:bg-white/5 rounded-lg transition-colors flex-shrink-0"
+                                                    >
+                                                        {isExpanded ? (
+                                                            <ChevronUp className="w-5 h-5 text-slate-400" />
+                                                        ) : (
+                                                            <ChevronDown className="w-5 h-5 text-slate-400" />
+                                                        )}
+                                                    </button>
+                                                )}
                                             </div>
-
-                                            {/* Expand button */}
-                                            {'consequences' in choice && choice.consequences && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setExpandedChoice(isExpanded ? null : index);
-                                                    }}
-                                                    className="p-1 hover:bg-slate-600 rounded transition-colors"
-                                                >
-                                                    {isExpanded ? (
-                                                        <ChevronUp className="w-5 h-5 text-slate-400" />
-                                                    ) : (
-                                                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                                                    )}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </button>
-                                </div>
-                            );
-                        })}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>

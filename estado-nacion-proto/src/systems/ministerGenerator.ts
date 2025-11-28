@@ -54,7 +54,7 @@ export function generateMinister(
     // Base stats (before trait modifiers)
     const baseStats = {
         competence: 30 + Math.floor(Math.random() * 40), // 30-70 base
-        loyalty: 30 + Math.floor(Math.random() * 40),
+        loyalty: 50 + Math.floor(Math.random() * 30), // 50-80 base (inicio más leal)
         popularity: 20 + Math.floor(Math.random() * 30),
         corruption: Math.floor(Math.random() * 30), // 0-30 base
         ambition: 20 + Math.floor(Math.random() * 40),

@@ -1,6 +1,8 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @theme {
+  --color-slate-950: #020617;
   --color-slate-900: #0f172a;
   --color-slate-800: #1e293b;
   --color-slate-700: #334155;
@@ -10,9 +12,17 @@
   --color-slate-300: #cbd5e1;
   --color-slate-100: #f1f5f9;
 
+  --color-navy-900: #0a1128;
+  --color-navy-800: #0f1a3d;
+  --color-navy-700: #152041;
+
+  --color-amber-400: #fbbf24;
   --color-amber-500: #f59e0b;
   --color-amber-600: #d97706;
-  --color-amber-700: #b45309;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
 
   --color-green-400: #4ade80;
   --color-blue-400: #60a5fa;
@@ -22,5 +32,247 @@
 }
 
 body {
-  @apply bg-slate-900 text-slate-100;
+body {
+  color: rgb(241 245 249);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(to bottom right, #020617, #0a1128, #020617);
+  min-height: 100vh;
+}
+
+/* Glass morphism utility classes */
+.glass-panel {
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-light {
+  background-color: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+}
+
+.glass-status-bar {
+  background-color: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glow effects */
+.glow-border-cyan {
+  border: 1px solid rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+}
+
+.glow-border-amber {
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.glow-border-rose {
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.5);
+}
+
+/* Button styles */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(to right, rgb(37 99 235), rgb(59 130 246));
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 20px 25px -5px rgba(96, 165, 250, 0.4);
+  transform: scale(1.05);
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
+}
+
+.btn-danger {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(to right, rgb(225 29 72), rgb(244 63 94));
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(244, 63, 94, 0.3);
+  transition: all 0.3s;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 20px 25px -5px rgba(251, 113, 133, 0.4);
+  transform: scale(1.05);
+}
+
+.btn-danger:active {
+  transform: scale(0.95);
+}
+
+.btn-secondary {
+  background-color: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgb(226 232 240);
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(51, 65, 85, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Stat indicators */
+.stat-high {
+  color: rgb(52 211 153);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-weight: 600;
+}
+
+.stat-medium {
+  color: rgb(251 191 36);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-weight: 600;
+}
+
+.stat-low {
+  color: rgb(251 113 133);
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-weight: 600;
+}
+
+/* Circular progress indicator */
+.progress-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Dossier panel */
+.dossier-panel {
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  padding: 1.5rem;
+  border-left: 4px solid rgb(251 191 36);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.classified-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.05em;
+  color: rgba(251, 191, 36, 0.8);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+/* Navigation dock */
+.nav-dock-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.nav-dock-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.nav-dock-item.active {
+  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.2), rgba(34, 211, 238, 0.2));
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background-color: rgb(15 23 42);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.nav-dock-item:hover .tooltip {
+  opacity: 1;
+}
+
+/* Micro-interactions */
+@keyframes flash-success {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.flash-success {
+  animation: flash-success 0.5s ease-in-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(15, 23, 42, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(51, 65, 85, 0.8);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(71, 85, 105, 0.8);
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(34, 211, 238, 0.3);
+  color: rgb(207 250 254);
+}
 }

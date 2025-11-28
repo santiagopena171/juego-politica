@@ -12,14 +12,14 @@ const DecisionCard: React.FC<{ decision: PresidentialDecision; onResolve: (id: s
                             decision.urgency === 'High' ? 'bg-orange-900 text-orange-200' :
                                 'bg-blue-900 text-blue-200'
                         }`}>
-                        {decision.urgency}
+                        {decision.urgency === 'Critical' ? 'Crítica' : decision.urgency === 'High' ? 'Alta' : 'Media'}
                     </span>
                     <span className="ml-2 text-slate-400 text-xs uppercase tracking-wider">{decision.source}</span>
                 </div>
                 {decision.expiresAt && (
                     <div className="flex items-center text-slate-400 text-xs">
                         <Clock className="w-3 h-3 mr-1" />
-                        <span>Expires soon</span>
+                        <span>Expira pronto</span>
                     </div>
                 )}
             </div>
@@ -62,13 +62,7 @@ export const DecisionStack: React.FC = () => {
     if (!decisions || decisions.length === 0) return null;
 
     const handleResolve = (decisionId: string, optionId: string) => {
-        // In a real implementation, we would dispatch an action to resolve the decision
-        // For now, we'll just remove it to simulate resolution
-        // dispatch({ type: 'RESOLVE_DECISION', payload: { decisionId, optionId } });
-        console.log(`Resolved decision ${decisionId} with option ${optionId}`);
-
-        // Temporary hack to remove decision from stack until we have a reducer case
-        // This requires a new action type in GameContext
+        dispatch({ type: 'RESOLVE_DECISION', payload: { decisionId, optionId } });
     };
 
     return (

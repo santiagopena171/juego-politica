@@ -9,12 +9,14 @@ import type { Bill, FactionVote, ParliamentaryEvent } from '../types/parliament'
 import type { Region, Industry, BudgetAllocation, TradeAgreement, EconomicEvent } from '../types/economy';
 import type { SocialData, ProtestAction, InterestGroupType, ApprovalModifier } from '../types/social';
 import type { MediaState, PresidentialDecision, RegionUIFlags, MinisterFaceState } from '../types/living_world';
+import type { PresidentialMessage } from '../types/messaging';
 import type { Constitution, Judge } from '../types/judiciary';
 import type { NationalProject } from '../systems/grandProjects';
 import type { ActiveSituation } from '../systems/CrisisSystem';
 import { shiftCompass } from '../systems/IdeologySystem';
 import { evaluateTurn } from '../systems/theBrain';
 import { generateMinister, generateParliament } from '../systems/politics';
+import { generateMinisterProposals } from '../systems/billGenerator';
 import { checkEventTriggers, checkSituationUpdates, checkEconomicEvents } from '../systems/events';
 import { simulateBillVote, updateFactionStances, calculateGovernmentSupport } from '../systems/parliamentSystem';
 import { checkParliamentaryEvents } from '../systems/parliamentEvents';
@@ -135,6 +137,11 @@ export interface GameState {
     };
     media: MediaState;
     decisionStack: PresidentialDecision[];
+    messaging: {
+        inbox: PresidentialMessage[];
+        unreadCount: number;
+        archivedMessages: PresidentialMessage[];
+    };
     uiFlags?: {
         regionFlags: Record<string, RegionUIFlags>;
         ministerFaces: Record<string, MinisterFaceState>;
@@ -308,6 +315,7 @@ type Action =
     | { type: 'PROPOSE_PEACE'; payload: { warId: string; terms: any } }
     | { type: 'ACCEPT_PEACE'; payload: { warId: string } }
     | { type: 'SEND_DIPLOMATIC_AID'; payload: { targetCountry: string; amount: number } }
+    | { type: 'RESOLVE_DECISION'; payload: { decisionId: string; optionId: string } }
     | { type: 'PROPOSE_UN_RESOLUTION'; payload: { resolutionType: string; targetCountry?: string } }
     | { type: 'VOTE_UN_RESOLUTION'; payload: { resolutionId: string; vote: 'favor' | 'against' | 'abstain' } }
     | { type: 'LOBBY_COUNTRY'; payload: { targetCountry: string; resolutionId: string; amount: number } }
@@ -316,6 +324,11 @@ type Action =
     | { type: 'CLOSE_BORDERS'; payload: { crisisId: string } }
     | { type: 'SIMULATE_WAR_ROUND'; payload: { warId: string } }
     | { type: 'PROCESS_UN_VOTING'; payload: { resolutionId: string } }
+    // Messaging System
+    | { type: 'MARK_MESSAGE_READ'; payload: string }
+    | { type: 'REPLY_TO_MESSAGE'; payload: { messageId: string; response: string } }
+    | { type: 'ARCHIVE_MESSAGE'; payload: string }
+    | { type: 'SEND_MESSAGE'; payload: PresidentialMessage }
     // Save/Load System
     | { type: 'LOAD_GAME'; payload: GameState };
 
@@ -399,6 +412,11 @@ const initialState: GameState = {
         propagandaBudget: 0
     },
     decisionStack: [],
+    messaging: {
+        inbox: [],
+        unreadCount: 0,
+        archivedMessages: []
+    },
     uiFlags: {
         regionFlags: {},
         ministerFaces: {}
@@ -1072,8 +1090,42 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 economy: { ...updatedStateAfterBrainWithDecisions.economy, ...mandateEffects.economy }
             };
 
+            // Generar propuestas de ley mensuales de los ministros
+            let ministerMessages: PresidentialMessage[] = [];
+            try {
+                ministerMessages = stateWithMandates.government.ministers.map(minister => {
+                    const proposals = generateMinisterProposals(minister, stateWithMandates);
+                    
+                    return {
+                        id: `minister_proposal_${minister.id}_${state.time.date.getTime()}`,
+                        senderId: minister.id,
+                        senderName: minister.name,
+                        senderType: 'minister' as const,
+                        subject: `Propuestas Legislativas - ${minister.ministry}`,
+                        content: `Estimado Presidente ${state.player.name},\n\nComo Ministro de ${minister.ministry}, me dirijo a usted para presentar ${proposals.length} proyectos de ley que considero esenciales para el desarrollo de nuestra nación.\n\nEstas propuestas han sido cuidadosamente elaboradas considerando el contexto actual del país y los desafíos que enfrentamos. Solicito su revisión y aprobación para someterlas al Parlamento.\n\nQuedo a su disposición para cualquier consulta.\n\nAtentamente,\n${minister.name}\nMinistro de ${minister.ministry}`,
+                        priority: proposals.some(p => p.estimatedCost && p.estimatedCost > 150) ? 'high' : 'normal',
+                        date: new Date(state.time.date),
+                        read: false,
+                        replied: false,
+                        billProposals: proposals
+                    };
+                });
+            } catch (error) {
+                console.error('Error generating minister proposals:', error);
+                ministerMessages = [];
+            }
+
+            // Agregar los mensajes al inbox (con verificación de seguridad)
+            const currentMessaging = stateWithMandates.messaging || { inbox: [], unreadCount: 0, archivedMessages: [] };
+            const updatedMessaging = {
+                inbox: [...currentMessaging.inbox, ...ministerMessages],
+                unreadCount: currentMessaging.unreadCount + ministerMessages.length,
+                archivedMessages: currentMessaging.archivedMessages
+            };
+
             return {
                 ...stateWithMandates,
+                messaging: updatedMessaging,
                 logs: [...stateWithMandates.logs, `${state.time.date.toISOString().split('T')[0]}: Cierre de mes. Crecimiento ${(regionalEconomyResult.gdpGrowthRate * 100).toFixed(1)}%`],
             };
         }
@@ -1388,6 +1440,49 @@ const gameReducer = (state: GameState, action: Action): GameState => {
                 government: { ...state.government, ministers: updatedMinisters },
                 resources: { ...state.resources, politicalCapital: state.resources.politicalCapital - politicalCost },
                 logs: [...state.logs, `${state.time.date.toISOString().split('T')[0]}: ${firedMinister.name} destituido. ${replacementMinister.name} asume el cargo.`]
+            };
+        }
+
+        case 'RESOLVE_DECISION': {
+            const { decisionId, optionId } = action.payload;
+            const decision = state.decisionStack.find(d => d.id === decisionId);
+            
+            if (!decision) return state;
+
+            const selectedOption = decision.options.find(o => o.id === optionId);
+            if (!selectedOption) return state;
+
+            // Aplicar el efecto de la opción seleccionada
+            let updatedState = { ...state };
+            if (selectedOption.effect) {
+                const effectResult = selectedOption.effect(state);
+                updatedState = {
+                    ...state,
+                    ...effectResult,
+                    government: effectResult.government || state.government,
+                    resources: effectResult.resources || state.resources,
+                };
+            }
+
+            // Aplicar costos
+            if (selectedOption.cost) {
+                const newResources = { ...updatedState.resources };
+                if (selectedOption.cost.budget) {
+                    newResources.budget -= selectedOption.cost.budget;
+                }
+                if (selectedOption.cost.politicalCapital) {
+                    newResources.politicalCapital -= selectedOption.cost.politicalCapital;
+                }
+                updatedState.resources = newResources;
+            }
+
+            // Remover la decisión del stack
+            const newDecisionStack = updatedState.decisionStack.filter(d => d.id !== decisionId);
+
+            return {
+                ...updatedState,
+                decisionStack: newDecisionStack,
+                logs: [...updatedState.logs, `${state.time.date.toISOString().split('T')[0]}: Decisión tomada - ${decision.title}: ${selectedOption.label}`]
             };
         }
 
@@ -2184,14 +2279,102 @@ const gameReducer = (state: GameState, action: Action): GameState => {
             };
         }
 
-        case 'LOAD_GAME': {
-            // Cargar estado completo desde save
+        case 'MARK_MESSAGE_READ': {
+            const messageId = action.payload;
+            const updatedInbox = state.messaging.inbox.map(msg =>
+                msg.id === messageId ? { ...msg, read: true } : msg
+            );
+            const unreadCount = updatedInbox.filter(msg => !msg.read).length;
+            
             return {
-                ...action.payload,
+                ...state,
+                messaging: {
+                    ...state.messaging,
+                    inbox: updatedInbox,
+                    unreadCount
+                }
+            };
+        }
+
+        case 'REPLY_TO_MESSAGE': {
+            const { messageId, response } = action.payload;
+            const message = state.messaging.inbox.find(msg => msg.id === messageId);
+            
+            if (!message) return state;
+
+            const updatedInbox = state.messaging.inbox.map(msg =>
+                msg.id === messageId ? { ...msg, replied: true } : msg
+            );
+
+            // Aplicar efectos de la respuesta si existe
+            let updatedState = { ...state };
+            if (message.responses) {
+                const selectedResponse = message.responses.find(r => r.id === response);
+                if (selectedResponse?.effect) {
+                    const effects = selectedResponse.effect(state);
+                    updatedState = { ...state, ...effects };
+                }
+            }
+
+            return {
+                ...updatedState,
+                messaging: {
+                    ...state.messaging,
+                    inbox: updatedInbox
+                }
+            };
+        }
+
+        case 'ARCHIVE_MESSAGE': {
+            const messageId = action.payload;
+            const message = state.messaging.inbox.find(msg => msg.id === messageId);
+            
+            if (!message) return state;
+
+            const updatedInbox = state.messaging.inbox.filter(msg => msg.id !== messageId);
+            const archivedMessages = [...state.messaging.archivedMessages, message];
+            const unreadCount = updatedInbox.filter(msg => !msg.read).length;
+
+            return {
+                ...state,
+                messaging: {
+                    inbox: updatedInbox,
+                    archivedMessages,
+                    unreadCount
+                }
+            };
+        }
+
+        case 'SEND_MESSAGE': {
+            const newMessage = action.payload;
+            const updatedInbox = [...state.messaging.inbox, newMessage];
+            const unreadCount = updatedInbox.filter(msg => !msg.read).length;
+
+            return {
+                ...state,
+                messaging: {
+                    ...state.messaging,
+                    inbox: updatedInbox,
+                    unreadCount
+                }
+            };
+        }
+
+        case 'LOAD_GAME': {
+            // Cargar estado completo desde save con migración automática
+            const loadedState = action.payload;
+            return {
+                ...loadedState,
                 // Asegurar que el juego esté pausado al cargar
                 time: {
-                    ...action.payload.time,
+                    ...loadedState.time,
                     isPlaying: false
+                },
+                // Migrar partidas antiguas que no tienen messaging
+                messaging: loadedState.messaging || {
+                    inbox: [],
+                    unreadCount: 0,
+                    archivedMessages: []
                 }
             };
         }

@@ -16,18 +16,27 @@ const getPsychology = (minister: Minister): MinisterPsychology => {
 export const evaluateMinisterBehavior = (minister: Minister, state: GameState): PresidentialDecision | null => {
     const psych = getPsychology(minister);
 
-    // 1. Check Loyalty & Resignation
-    if (minister.stats.loyalty < 20) {
+    // No generar eventos de ministros en los primeros 3 meses de juego
+    const gameStartDate = new Date(2025, 0, 1); // Asumiendo que el juego empieza en enero 2025
+    const monthsPlayed = (state.time.date.getFullYear() - gameStartDate.getFullYear()) * 12 + 
+                         (state.time.date.getMonth() - gameStartDate.getMonth());
+    
+    if (monthsPlayed < 3) {
+        return null; // No generar eventos de ministros al inicio
+    }
+
+    // 1. Check Loyalty & Resignation (solo si la lealtad es muy baja)
+    if (minister.stats.loyalty < 15) {
         return {
             id: `resignation_threat_${minister.id}_${Date.now()}`,
             source: minister.name,
-            title: 'Threat of Resignation',
-            description: `${minister.name} is disillusioned with your leadership and threatens to resign unless demands are met.`,
+            title: 'Amenaza de Renuncia',
+            description: `${minister.name} está desilusionado con tu liderazgo y amenaza con renunciar a menos que se satisfagan sus demandas.`,
             urgency: 'High',
             options: [
                 {
                     id: 'accept_resignation',
-                    label: 'Accept Resignation',
+                    label: 'Aceptar Renuncia',
                     effect: (s) => ({
                         // Logic to remove minister would go here
                         // For now, just a placeholder effect
@@ -39,7 +48,7 @@ export const evaluateMinisterBehavior = (minister: Minister, state: GameState): 
                 },
                 {
                     id: 'bribe',
-                    label: 'Offer Bonus (Budget -100)',
+                    label: 'Ofrecer Bonificación (Presupuesto -100)',
                     cost: { budget: 100 },
                     effect: (s) => {
                         const updatedMinisters = s.government.ministers.map(m =>
@@ -61,14 +70,14 @@ export const evaluateMinisterBehavior = (minister: Minister, state: GameState): 
         // High chance of embezzlement scandal or request
         return {
             id: `corruption_scheme_${minister.id}_${Date.now()}`,
-            source: 'Intelligence',
-            title: 'Suspicious Financial Activity',
-            description: `Intelligence reports indicate ${minister.name} might be diverting funds.`,
+            source: 'Inteligencia',
+            title: 'Actividad Financiera Sospechosa',
+            description: `Reportes de inteligencia indican que ${minister.name} podría estar desviando fondos.`,
             urgency: 'Medium',
             options: [
                 {
                     id: 'investigate',
-                    label: 'Launch Investigation',
+                    label: 'Iniciar Investigación',
                     effect: (s) => {
                         // Trigger scandal event logic
                         return {};
@@ -76,7 +85,7 @@ export const evaluateMinisterBehavior = (minister: Minister, state: GameState): 
                 },
                 {
                     id: 'ignore',
-                    label: 'Look the other way (Loyalty +10)',
+                    label: 'Hacer la vista gorda (Lealtad +10)',
                     effect: (s) => {
                         const updatedMinisters = s.government.ministers.map(m =>
                             m.id === minister.id

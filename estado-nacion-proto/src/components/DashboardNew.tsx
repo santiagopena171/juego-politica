@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import { 
     Play, Pause, Clock, TrendingUp, Users, Shield, AlertTriangle, 
     Globe2, Briefcase, Scale, Landmark, Building2, Swords, Save, FolderOpen,
-    Target, Activity, BarChart3, Mail
+    Target, Activity, BarChart3
 } from 'lucide-react';
 import { DiplomacyPanel } from './DiplomacyPanel';
 import { CabinetPanel } from './CabinetPanel';
@@ -26,9 +26,8 @@ import { SaveLoadMenu } from './SaveLoadMenu';
 import { autoSave } from '../utils/saveSystem';
 import { JudiciaryPanel } from './JudiciaryPanel';
 import { GrandProjectsPanel } from './GrandProjectsPanel';
-import { MessagingPanel } from './MessagingPanel';
 
-type ViewType = 'command' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances' | 'judiciary' | 'projects' | 'messages';
+type ViewType = 'command' | 'map' | 'cabinet' | 'parliament' | 'policies' | 'economy' | 'social' | 'un' | 'warroom' | 'alliances' | 'judiciary' | 'projects';
 
 export const Dashboard = () => {
     const { state, dispatch } = useGame();
@@ -82,7 +81,6 @@ export const Dashboard = () => {
     // Navigation items
     const navItems = [
         { id: 'command' as ViewType, icon: Target, label: 'Centro de Mando', color: 'cyan' },
-        { id: 'messages' as ViewType, icon: Mail, label: 'Mensajes', color: 'rose' },
         { id: 'map' as ViewType, icon: Globe2, label: 'Mapa Mundial', color: 'blue' },
         { id: 'cabinet' as ViewType, icon: Briefcase, label: 'Gabinete', color: 'amber' },
         { id: 'parliament' as ViewType, icon: Landmark, label: 'Parlamento', color: 'purple' },
@@ -231,16 +229,11 @@ export const Dashboard = () => {
                         <button
                             key={item.id}
                             onClick={() => setView(item.id)}
-                            className={`nav-dock-item relative ${view === item.id ? 'active' : ''}`}
+                            className={`nav-dock-item ${view === item.id ? 'active' : ''}`}
                         >
                             <item.icon className={`w-6 h-6 transition-colors ${
                                 view === item.id ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'
                             }`} />
-                            {item.id === 'messages' && state.messaging.unreadCount > 0 && (
-                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-                                    {state.messaging.unreadCount}
-                                </div>
-                            )}
                             <span className="tooltip">{item.label}</span>
                         </button>
                     ))}
@@ -332,12 +325,10 @@ export const Dashboard = () => {
                                 <WorldMap
                                     countries={state.diplomacy.countries}
                                     onSelectCountry={(c) => setSelectedCountryId(c.id)}
-                                    selectedCountryId={selectedCountryId}
                                 />
                             </div>
                         )}
 
-                        {view === 'messages' && <MessagingPanel />}
                         {view === 'cabinet' && <CabinetPanel />}
                         {view === 'parliament' && <ParliamentPanel />}
                         {view === 'policies' && <PoliciesPanel />}
@@ -357,7 +348,7 @@ export const Dashboard = () => {
 
             {/* Modals */}
             {state.events.activeEvent && (
-                <EventModal event={state.events.activeEvent} />
+                <EventModal />
             )}
 
             {state.parliament.lastVoteResult && (
